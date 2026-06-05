@@ -1,5 +1,5 @@
 {
-  "name": "livescreen-demo",
+  "name": "gemini-livescreen",
   "version": "1.0.0",
   "description": "LiveScreen - Gemini Live Screen Tutor Demo",
   "main": "electron/main.js",
