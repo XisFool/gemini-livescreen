@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiveScreen — Gemini Live 屏幕辅导</title>
+  <link rel="stylesheet" href="../../public/style.css">
+  <style>
+    /* 隐藏原网页的 top-nav 结构 */
+    .top-nav {
+      display: none !important;
+    }
+    
+    /* 桌面自定义标题栏样式 */
+    .custom-titlebar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--canvas);
+      height: 38px;
+      border-bottom: 1px solid var(--hairline);
+      user-select: none;
+      font-family: var(--font-body);
+      -webkit-app-region: drag;
+    }
+    
+    .titlebar-drag-region {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding-left: 16px;
+      height: 100%;
+    }
+    
+    .titlebar-logo {
+      margin-right: 8px;
+      font-size: 16px;
+    }
+    
+    .titlebar-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .titlebar-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-card);
+      padding: 4px 10px;
+      border-radius: var(--rounded-pill);
+      border: 1px solid var(--hairline);
+      font-size: 11px;
+      font-weight: 500;
+      margin-right: 12px;
+      -webkit-app-region: no-drag;
+    }
+    
+    .titlebar-controls {
+      display: flex;
+      height: 100%;
+      -webkit-app-region: no-drag;
+    }
+    
+    .titlebar-btn {
+      background: transparent;
+      border: none;
+      width: 72px; /* 设置按钮稍微宽一点 */
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    
+    .titlebar-btn.win-ctrl {
+      width: 46px;
+      font-size: 14px;
+    }
+    
+    .titlebar-btn:hover {
+      background: var(--surface-strong);
+      color: var(--ink);
+    }
+    
+    .titlebar-btn-close:hover {
+      background: var(--error) !important;
+      color: #ffffff !important;
+    }
+    
+    .app-layout {
+      height: calc(100vh - 82px) !important; /* 38px titlebar + 44px footer = 82px */
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 自定义无边框标题栏 -->
+  <div class="custom-titlebar">
+    <div class="titlebar-drag-region">
+      <span class="titlebar-logo">🎬</span>
+      <span class="titlebar-title">LiveScreen 桌面端</span>
+    </div>
+    
+    <!-- 设置 & 状态 & 窗口按钮 -->
+    <div class="titlebar-controls">
+      <div class="titlebar-status" id="title-status-container">
+        <span id="title-status-text">未连接</span>
+      </div>
+      <button class="titlebar-btn" id="btn-settings" title="设置">⚙ 设置</button>
+      <button class="titlebar-btn win-ctrl" id="btn-minimize" title="最小化">─</button>
+      <button class="titlebar-btn win-ctrl" id="btn-maximize" title="最大化">▢</button>
+      <button class="titlebar-btn win-ctrl titlebar-btn-close" id="btn-close" title="关闭">✕</button>
+    </div>
+  </div>
+
+  <!-- 为了兼容 app.js，我们需要把原本 index.html 的 top-nav 写出来并加上 style="display:none"，
+       或者我们在 app.js 中引用了 wsStatusDot 等元素，我们需要把对应的 id 绑定到我们自定义标题栏的元素上，
+       以零修改 app.js -->
+  <div style="display: none;">
+    <span id="ws-status-dot"></span>
+    <span id="ws-status-text"></span>
+  </div>
+
+  <!-- Main Application Layout -->
+  <main class="app-layout">
+    
+    <!-- Screen Panel -->
+    <div class="screen-panel">
+      <div class="screen-preview-card" id="preview-card">
+        <!-- Live Video Element (Shown during capture) -->
+        <video id="screen-video" class="screen-video" autoplay playsinline muted></video>
+        
+        <!-- Canvas for capturing frames (Hidden) -->
+        <canvas id="screen-canvas" style="display: none;"></canvas>
+
+        <!-- Placeholder when screen is not shared -->
+        <div class="screen-placeholder" id="screen-placeholder">
+          <div class="placeholder-icon">💻</div>
+          <div class="placeholder-title">实时屏幕共享</div>
+          <div class="placeholder-desc">
+            点击下方“开始共享屏幕”按钮。Gemini 将以每秒 1 帧的速度观察您的屏幕内容，并根据您的提问提供精准指导。
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-controls">
+        <button class="btn btn-primary" id="btn-start-share">
+          <span>📹</span> 开始共享屏幕
+        </button>
+        <button class="btn btn-secondary" id="btn-stop-share" disabled>
+          <span>⏹</span> 停止共享
+        </button>
+        <div class="volume-control-wrapper" style="display: flex; align-items: center; gap: 8px; margin-left: auto; background: var(--surface-card); padding: 4px 12px; border-radius: var(--rounded-pill); border: 1px solid var(--hairline);">
+          <span id="btn-volume-mute" style="cursor: pointer; user-select: none; font-size: 14px; display: flex; align-items: center;" title="静音/取消静音">🔊</span>
+          <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1.0" style="width: 80px; accent-color: var(--primary); cursor: pointer;" title="调节音量">
+          <span id="volume-value" style="font-size: 11px; min-width: 30px; text-align: right; color: var(--muted); font-family: monospace;">100%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-title">💬 实时辅导</div>
+        <button class="btn btn-secondary" style="height: 32px; padding: 0 12px; font-size: 12px;" id="btn-clear-chat">
+          清空对话
+        </button>
+      </div>
+
+      <!-- Chat History Container -->
+      <div class="chat-history" id="chat-history">
+        <div class="chat-message system">
+          <div class="message-content">欢迎来到 LiveScreen。共享屏幕后，您可以通过文字或者长按语音键与 Gemini 对话。</div>
+        </div>
+      </div>
+
+      <!-- Input and Audio control area -->
+      <div class="input-area">
+        <div class="input-row">
+          <!-- Voice Button (Push to talk / Tap to toggle) -->
+          <button class="btn-voice" id="btn-voice" title="语音通话 (按住说话 / 点击长开)">
+            🎙️
+          </button>
+          
+          <div class="text-input-wrapper">
+            <input type="text" class="input-text" id="input-message" placeholder="输入问题或长按麦克风说话..." disabled>
+          </div>
+          
+          <button class="btn-send" id="btn-send" disabled>
+            ➔
+          </button>
+        </div>
+        <div class="input-hint">
+          <span id="voice-hint">语音状态：关闭。可按住麦克风图标或点击它以开启。</span>
+          <span>按回车发送</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Status Bar -->
+  <footer class="status-bar">
+    <div class="status-left">
+      <div class="status-indicator">
+        <span class="indicator-dot" id="dot-fps"></span>
+        <span id="txt-fps">帧率: 0 fps</span>
+      </div>
+      <div class="status-indicator">
+        <span class="indicator-dot" id="dot-audio"></span>
+        <span id="txt-audio">麦克风: 未就绪</span>
+      </div>
+    </div>
+    <div class="status-right">
+      <span>Powered by Gemini Live API</span>
+    </div>
+  </footer>
+
+  <!-- WebSocket address correction, state sync, window controller and command listener -->
+  <script>
+    // 1. 拦截全局 WebSocket，如果传入的是相对/无效/file的 ws 地址，自动纠正为 ws://localhost:3000/ws
+    const OriginalWebSocket = window.WebSocket;
+    window.WebSocket = class extends OriginalWebSocket {
+      constructor(url, protocols) {
+        if (url.startsWith('ws:///ws') || url.includes('file:') || url.endsWith('/ws')) {
+          url = 'ws://localhost:3000/ws';
+        }
+        super(url, protocols);
+        
+        // 拦截 send 方法，上报屏幕帧给主进程以供迷你窗预览
+        const originalSend = this.send;
+        this.send = (data) => {
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'frame') {
+              if (window.electronAPI && window.electronAPI.updatePreviewFrame) {
+                window.electronAPI.updatePreviewFrame(parsed.payload.data);
+              }
+            }
+          } catch (e) {
+            // 忽略非 JSON
+          }
+          return originalSend.call(this, data);
+        };
+      }
+    };
+
+    // 2. 状态同步：让自定义标题栏中的状态文本同步网页里的 WebSocket 状态
+    document.addEventListener('DOMContentLoaded', () => {
+      const origText = document.getElementById('ws-status-text');
+      const titleText = document.getElementById('title-status-text');
+
+      if (origText && titleText) {
+        // 使用 MutationObserver 监听 origText 文字的变化
+        const observer = new MutationObserver(() => {
+          titleText.textContent = origText.textContent;
+        });
+        
+        observer.observe(origText, { characterData: true, childList: true });
+        
+        // 初始化一次
+        titleText.textContent = origText.textContent;
+      }
+
+      // 3. 自定义无边框窗口按钮事件绑定
+      if (window.electronAPI) {
+        document.getElementById('btn-minimize').addEventListener('click', () => {
+          window.electronAPI.minimize();
+        });
+        const btnMaximize = document.getElementById('btn-maximize');
+        btnMaximize.addEventListener('click', () => {
+          window.electronAPI.maximize();
+        });
+        document.getElementById('btn-close').addEventListener('click', () => {
+          window.electronAPI.close();
+        });
+        document.getElementById('btn-settings').addEventListener('click', () => {
+          window.electronAPI.openSettings();
+        });
+
+        window.electronAPI.onMaximizedState((isMaximized) => {
+          if (isMaximized) {
+            btnMaximize.textContent = '❐';
+            btnMaximize.title = '向下还原';
+          } else {
+            btnMaximize.textContent = '▢';
+            btnMaximize.title = '最大化';
+          }
+        });
+
+        // 4. 监听来自迷你窗的命令并模拟操作，优先使用解耦的 AppControl 接口，否则 Fallback 到 DOM 点击
+        window.electronAPI.onStartScreen(() => {
+          if (window.AppControl) {
+            window.AppControl.startScreenShare();
+          } else {
+            const btn = document.getElementById('btn-start-share');
+            if (btn && !btn.disabled) {
+              btn.click();
+            }
+          }
+        });
+
+        window.electronAPI.onStopScreen(() => {
+          if (window.AppControl) {
+            window.AppControl.stopScreenShare();
+          } else {
+            const btn = document.getElementById('btn-stop-share');
+            if (btn && !btn.disabled) {
+              btn.click();
+            }
+          }
+        });
+
+        window.electronAPI.onToggleVoice(() => {
+          if (window.AppControl) {
+            window.AppControl.toggleVoice();
+          } else {
+            const btn = document.getElementById('btn-voice');
+            if (btn) {
+              // 模拟一次 mousedown 和 50ms 后的 mouseup (快速点击) 以触发语音 toggle
+              const mouseDownEvent = new MouseEvent('mousedown');
+              const mouseUpEvent = new MouseEvent('mouseup');
+              btn.dispatchEvent(mouseDownEvent);
+              setTimeout(() => {
+                btn.dispatchEvent(mouseUpEvent);
+              }, 50);
+            }
+          }
+        });
+
+        // 5. 状态同步到主进程，由主进程广播给迷你窗口
+        const btnStart = document.getElementById('btn-start-share');
+        const btnVoice = document.getElementById('btn-voice');
+        
+        const reportState = () => {
+          const isSharing = btnStart.disabled; // disabled 说明在共享
+          const isVoiceRecording = btnVoice.classList.contains('recording');
+          window.electronAPI.updateState({ isSharing, isVoiceRecording });
+        };
+
+        const stateObserver = new MutationObserver(reportState);
+        stateObserver.observe(btnStart, { attributes: true, attributeFilter: ['disabled'] });
+        stateObserver.observe(btnVoice, { attributes: true, attributeFilter: ['class'] });
+
+        // 初始化上报一次
+        setTimeout(reportState, 1000);
+      }
+    });
+  </script>
+
+  <!-- Web API and client modules -->
+  <script src="../../public/screen-capture.js"></script>
+  <script src="../../public/audio-capture.js"></script>
+  <script src="../../public/app.js"></script>
+</body>
+</html>

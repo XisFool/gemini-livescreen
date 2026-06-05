@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiveScreen — 悬浮窗</title>
+  <link rel="stylesheet" href="../../public/style.css">
+  <style>
+    body {
+      background-color: transparent;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+      font-family: var(--font-body);
+      color: var(--ink);
+    }
+    
+    .mini-container {
+      background: var(--canvas);
+      border: 1.5px solid var(--hairline);
+      border-radius: var(--rounded-md);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 3px); /* 留点余量给 border */
+      overflow: hidden;
+      margin: 1.5px;
+    }
+    
+    /* 顶部拖动条 */
+    .titlebar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 32px;
+      background: var(--canvas);
+      border-bottom: 1px solid var(--hairline);
+      user-select: none;
+      -webkit-app-region: drag;
+      padding: 0 0 0 10px; /* 右侧贴边 */
+    }
+    
+    .titlebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    
+    .titlebar-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 6px var(--success);
+    }
+    
+    .titlebar-controls {
+      display: flex;
+      height: 100%;
+      gap: 0;
+      -webkit-app-region: no-drag;
+    }
+    
+    .titlebar-btn {
+      background: transparent;
+      border: none;
+      width: 36px;
+      height: 100%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--muted);
+      transition: background 0.2s, color 0.2s;
+    }
+    
+    .titlebar-btn:hover {
+      background: var(--surface-strong);
+      color: var(--ink);
+    }
+    
+    .titlebar-btn-close:hover {
+      background: var(--error) !important;
+      color: #ffffff !important;
+    }
+    
+    /* 预览区 */
+    .preview-area {
+      flex: 1;
+      position: relative;
+      background: var(--surface-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    
+    .preview-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: none;
+    }
+    
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: var(--on-dark-soft);
+      font-size: 12px;
+      text-align: center;
+      padding: 16px;
+    }
+    
+    .placeholder-icon {
+      font-size: 28px;
+    }
+    
+    /* 底部按钮区 */
+    .controls {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      height: 48px;
+      border-top: 1px solid var(--hairline);
+      background: var(--surface-soft);
+      padding: 0 8px;
+    }
+    
+    .control-btn {
+      background: transparent;
+      border: 1px solid var(--hairline);
+      padding: 6px 12px;
+      border-radius: var(--rounded-pill);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--ink);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    
+    .control-btn:hover {
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .control-btn.active {
+      background: var(--primary);
+      color: var(--canvas);
+      border-color: var(--primary);
+    }
+    
+    .control-btn.recording {
+      background: var(--brand-pink);
+      color: #ffffff;
+      border-color: var(--brand-pink);
+      animation: pulse-recording 1.5s infinite alternate;
+    }
+
+    @keyframes pulse-recording {
+      from { opacity: 0.8; }
+      to { opacity: 1; }
+    }
+
+    /* 极小尺寸下自适应隐藏/精简非预览元素 */
+    @media (max-height: 180px) {
+      .titlebar {
+        display: none !important;
+      }
+      .controls {
+        display: none !important;
+      }
+      .mini-container {
+        height: 100vh !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+      }
+      .preview-area {
+        height: 100vh !important;
+        -webkit-app-region: drag; /* 隐藏拖拽区时，允许直接拖动预览图 */
+      }
+    }
+
+    @media (max-width: 290px) {
+      .control-btn {
+        padding: 6px 10px !important;
+        font-size: 14px !important;
+        gap: 0 !important;
+      }
+      .btn-text {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="mini-container">
+    <!-- 顶部拖动条 -->
+    <div class="titlebar">
+      <div class="titlebar-brand">
+        <span class="titlebar-dot"></span>
+        <span>LiveScreen 迷你窗</span>
+      </div>
+      <div class="titlebar-controls">
+        <button class="titlebar-btn" id="btn-restore" title="还原并最大化主窗口">❐</button>
+        <button class="titlebar-btn titlebar-btn-close" id="btn-close" title="退出应用">✕</button>
+      </div>
+    </div>
+
+    <!-- 屏幕缩略图预览 -->
+    <div class="preview-area">
+      <img id="preview-img" class="preview-image" alt="屏幕预览">
+      <div id="placeholder" class="placeholder">
+        <div class="placeholder-icon">💻</div>
+        <div id="placeholder-text">暂无屏幕共享</div>
+      </div>
+    </div>
+
+    <!-- 底部快捷控制 -->
+    <div class="controls">
+      <button class="control-btn" id="btn-screen">📹 <span class="btn-text">共享屏幕</span></button>
+      <button class="control-btn" id="btn-voice">🎙️ <span class="btn-text">语音通话</span></button>
+      <div class="volume-control-wrapper" style="display: flex; align-items: center; gap: 4px; background: transparent; border: 1px solid var(--hairline); padding: 4px 8px; border-radius: var(--rounded-pill); max-width: 125px;">
+        <span id="btn-volume-mute" style="cursor: pointer; user-select: none; font-size: 13px;" title="静音/取消静音">🔊</span>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1.0" style="width: 45px; height: 4px; accent-color: var(--primary); cursor: pointer;" title="调节音量">
+        <span id="volume-value" style="font-size: 10px; min-width: 28px; text-align: right; color: var(--muted); font-family: monospace;">100%</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnRestore = document.getElementById('btn-restore');
+      const btnClose = document.getElementById('btn-close');
+      const btnScreen = document.getElementById('btn-screen');
+      const btnVoice = document.getElementById('btn-voice');
+      
+      const previewImg = document.getElementById('preview-img');
+      const placeholder = document.getElementById('placeholder');
+      const placeholderText = document.getElementById('placeholder-text');
+
+      let currentSharingState = false;
+
+      // 1. 窗口还原与关闭
+      btnRestore.addEventListener('click', () => {
+        if (window.electronAPI) window.electronAPI.restoreMainMaximized();
+      });
+      btnClose.addEventListener('click', () => {
+        if (window.electronAPI) window.electronAPI.close();
+      });
+
+      // 2. 快捷按钮点击
+      btnScreen.addEventListener('click', () => {
+        if (window.electronAPI) {
+          if (currentSharingState) {
+            window.electronAPI.stopScreen();
+          } else {
+            window.electronAPI.startScreen();
+          }
+        }
+      });
+
+      btnVoice.addEventListener('click', () => {
+        if (window.electronAPI) window.electronAPI.toggleVoice();
+      });
+
+      // 3. 音量控制逻辑同步
+      const volumeSlider = document.getElementById('volume-slider');
+      const btnVolumeMute = document.getElementById('btn-volume-mute');
+      let preMuteVolume = 1.0;
+
+      function updateVolumeIcon(val) {
+        if (!btnVolumeMute) return;
+        if (val === 0) {
+          btnVolumeMute.textContent = '🔇';
+        } else if (val < 0.5) {
+          btnVolumeMute.textContent = '🔈';
+        } else {
+          btnVolumeMute.textContent = '🔊';
+        }
+      }
+
+      if (volumeSlider) {
+        const savedVol = localStorage.getItem('gemini-volume') || '1.0';
+        volumeSlider.value = savedVol;
+        updateVolumeIcon(parseFloat(savedVol));
+
+        volumeSlider.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          localStorage.setItem('gemini-volume', val);
+          updateVolumeIcon(val);
+          if (window.electronAPI) window.electronAPI.changeVolume(val);
+        });
+      }
+
+      if (btnVolumeMute && volumeSlider) {
+        btnVolumeMute.addEventListener('click', () => {
+          const val = parseFloat(volumeSlider.value);
+          if (val > 0) {
+            preMuteVolume = val;
+            volumeSlider.value = 0;
+            localStorage.setItem('gemini-volume', 0);
+            updateVolumeIcon(0);
+            if (window.electronAPI) window.electronAPI.changeVolume(0);
+          } else {
+            volumeSlider.value = preMuteVolume;
+            localStorage.setItem('gemini-volume', preMuteVolume);
+            updateVolumeIcon(preMuteVolume);
+            if (window.electronAPI) window.electronAPI.changeVolume(preMuteVolume);
+          }
+        });
+      }
+
+      if (window.electronAPI) {
+        window.electronAPI.onChangeVolume((val) => {
+          if (volumeSlider) {
+            volumeSlider.value = val;
+            updateVolumeIcon(val);
+          }
+        });
+      }
+
+      // 3. 监听屏幕预览帧
+      let lastFrameTime = 0;
+      if (window.electronAPI) {
+        window.electronAPI.onPreviewFrame((base64JPEG) => {
+          if (base64JPEG) {
+            previewImg.src = 'data:image/jpeg;base64,' + base64JPEG;
+            previewImg.style.display = 'block';
+            placeholder.style.display = 'none';
+            lastFrameTime = Date.now();
+          }
+        });
+
+        // 4. 监听状态同步广播
+        window.electronAPI.onStateChange((state) => {
+          currentSharingState = state.isSharing;
+          
+          // 更新屏幕共享按钮样式与文字 (使用 innerHTML 以保留 span 支持响应式隐藏)
+          if (state.isSharing) {
+            btnScreen.innerHTML = '⏹ <span class="btn-text">停止共享</span>';
+            btnScreen.classList.add('active');
+          } else {
+            btnScreen.innerHTML = '📹 <span class="btn-text">共享屏幕</span>';
+            btnScreen.classList.remove('active');
+            
+            // 没有在共享时，隐藏图片并显示占位
+            previewImg.style.display = 'none';
+            placeholder.style.display = 'flex';
+            placeholderText.textContent = '暂无屏幕共享';
+          }
+
+          // 更新语音按钮样式
+          if (state.isVoiceRecording) {
+            btnVoice.classList.add('recording');
+            btnVoice.innerHTML = '🎙️ <span class="btn-text">正在通话</span>';
+          } else {
+            btnVoice.classList.remove('recording');
+            btnVoice.innerHTML = '🎙️ <span class="btn-text">语音通话</span>';
+          }
+        });
+      }
+
+      // 定时检测，如果超过 3s 没收到帧更新且处于共享中，可能出了状况，但主要是为了备用回退
+      setInterval(() => {
+        if (currentSharingState && Date.now() - lastFrameTime > 5000) {
+          // 如果很久没有新帧，且不是被动切后台（比如网络延迟等），可以提供一点过渡提示，但不直接修改 state 状态以保持和主窗口一致
+        }
+      }, 3000);
+    });
+  </script>
+</body>
+</html>

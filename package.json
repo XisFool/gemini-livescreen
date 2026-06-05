@@ -1,0 +1,44 @@
+{
+  "name": "livescreen-demo",
+  "version": "1.0.0",
+  "description": "LiveScreen - Gemini Live Screen Tutor Demo",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "electron": "electron .",
+    "build": "electron-builder"
+  },
+  "dependencies": {
+    "@google/genai": "^2.8.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ws": "^8.17.0"
+  },
+  "build": {
+    "appId": "com.livescreen.app",
+    "productName": "LiveScreen",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "electron/assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      "server.js",
+      "node_modules/**/*"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^42.3.3",
+    "electron-builder": "^26.8.1"
+  }
+}

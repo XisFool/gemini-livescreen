@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiveScreen — Gemini Live 屏幕辅导 Demo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <nav class="top-nav">
+    <div class="brand">
+      <div class="brand-logo">🎬</div>
+      <div class="brand-name">LiveScreen</div>
+    </div>
+    <div class="connection-status" id="ws-status-container">
+      <span class="status-dot" id="ws-status-dot"></span>
+      <span id="ws-status-text">未连接</span>
+    </div>
+  </nav>
+
+  <!-- Main Application Layout -->
+  <main class="app-layout">
+    
+    <!-- Screen Panel -->
+    <div class="screen-panel">
+      <div class="screen-preview-card" id="preview-card">
+        <!-- Live Video Element (Shown during capture) -->
+        <video id="screen-video" class="screen-video" autoplay playsinline muted></video>
+        
+        <!-- Canvas for capturing frames (Hidden) -->
+        <canvas id="screen-canvas" style="display: none;"></canvas>
+
+        <!-- Placeholder when screen is not shared -->
+        <div class="screen-placeholder" id="screen-placeholder">
+          <div class="placeholder-icon">💻</div>
+          <div class="placeholder-title">实时屏幕共享</div>
+          <div class="placeholder-desc">
+            点击下方“开始共享屏幕”按钮。Gemini 将以每秒 1 帧的速度观察您的屏幕内容，并根据您的提问提供精准指导。
+          </div>
+        </div>
+      </div>
+      
+      <div class="screen-controls">
+        <button class="btn btn-primary" id="btn-start-share">
+          <span>📹</span> 开始共享屏幕
+        </button>
+        <button class="btn btn-secondary" id="btn-stop-share" disabled>
+          <span>⏹</span> 停止共享
+        </button>
+      </div>
+    </div>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-title">💬 实时辅导</div>
+        <button class="btn btn-secondary" style="height: 32px; padding: 0 12px; font-size: 12px;" id="btn-clear-chat">
+          清空对话
+        </button>
+      </div>
+
+      <!-- Chat History Container -->
+      <div class="chat-history" id="chat-history">
+        <div class="chat-message system">
+          <div class="message-content">欢迎来到 LiveScreen。共享屏幕后，您可以通过文字或者长按语音键与 Gemini 对话。</div>
+        </div>
+      </div>
+
+      <!-- Input and Audio control area -->
+      <div class="input-area">
+        <div class="input-row">
+          <!-- Voice Button (Push to talk / Tap to toggle) -->
+          <button class="btn-voice" id="btn-voice" title="语音通话 (按住说话 / 点击长开)">
+            🎙️
+          </button>
+          
+          <div class="text-input-wrapper">
+            <input type="text" class="input-text" id="input-message" placeholder="输入问题或长按麦克风说话..." disabled>
+          </div>
+          
+          <button class="btn-send" id="btn-send" disabled>
+            ➔
+          </button>
+        </div>
+        <div class="input-hint">
+          <span id="voice-hint">语音状态：关闭。可按住麦克风图标或点击它以开启。</span>
+          <span>按回车发送</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Status Bar -->
+  <footer class="status-bar">
+    <div class="status-left">
+      <div class="status-indicator">
+        <span class="indicator-dot" id="dot-fps"></span>
+        <span id="txt-fps">帧率: 0 fps</span>
+      </div>
+      <div class="status-indicator">
+        <span class="indicator-dot" id="dot-audio"></span>
+        <span id="txt-audio">麦克风: 未就绪</span>
+      </div>
+    </div>
+    <div class="status-right">
+      <span>Powered by Gemini 2.0 Live API</span>
+    </div>
+  </footer>
+
+  <!-- Web API and client modules -->
+  <script src="screen-capture.js"></script>
+  <script src="audio-capture.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiveScreen — 设置</title>
+  <link rel="stylesheet" href="../../public/style.css">
+  <style>
+    body {
+      background-color: var(--canvas);
+      font-family: var(--font-body);
+      color: var(--ink);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      border: 1px solid var(--hairline);
+    }
+    
+    .titlebar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 38px;
+      background: var(--canvas);
+      border-bottom: 1px solid var(--hairline);
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+    
+    .titlebar-title {
+      font-size: 13px;
+      font-weight: 600;
+      padding-left: 16px;
+    }
+    
+    .titlebar-close {
+      width: 46px;
+      height: 100%;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      -webkit-app-region: no-drag;
+      transition: background 0.2s, color 0.2s;
+    }
+    
+    .titlebar-close:hover {
+      background: var(--error) !important;
+      color: #ffffff !important;
+    }
+
+    #btn-detect-proxy:hover {
+      background: #ffffff !important;
+      border-color: var(--primary) !important;
+    }
+    
+    .content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      -webkit-app-region: no-drag; /* 显式排除拖拽以恢复点击交互与焦点 */
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .form-input, .form-textarea {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 10px 12px;
+      border: 1px solid var(--hairline);
+      border-radius: var(--rounded-sm);
+      background: var(--surface-soft);
+      color: var(--ink);
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+    
+    .form-input:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #ffffff;
+    }
+    
+    .form-textarea {
+      resize: none;
+      height: 120px;
+    }
+    
+    .form-hint {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    
+    .footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 16px 24px;
+      border-top: 1px solid var(--hairline);
+      background: var(--surface-soft);
+      -webkit-app-region: no-drag; /* 显式排除拖拽以恢复点击交互与焦点 */
+    }
+    
+    /* Toast 通知样式 */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--primary);
+      color: var(--canvas);
+      padding: 10px 20px;
+      border-radius: var(--rounded-pill);
+      font-size: 12px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 100;
+    }
+    
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 自定义无边框标题栏 -->
+  <div class="titlebar">
+    <div class="titlebar-title">⚙️ LiveScreen 设置</div>
+    <button class="titlebar-close" id="btn-close">✕</button>
+  </div>
+
+  <!-- 内容区域 -->
+  <div class="content">
+    <div class="form-group">
+      <label class="form-label" for="api-key">Gemini API Key</label>
+      <div style="position: relative; display: flex; align-items: center;">
+        <input type="password" class="form-input" id="api-key" placeholder="请输入你的 Gemini API Key" style="flex: 1; padding-right: 40px;">
+        <span id="btn-toggle-apikey" style="position: absolute; right: 12px; cursor: pointer; user-select: none; font-size: 16px;" title="显示/隐藏 API Key">👁️</span>
+      </div>
+      <span class="form-hint">使用操作系统级安全存储（safeStorage）加密保存。若无需修改，请保留掩码。</span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="proxy-url">HTTP / HTTPS 代理地址</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" class="form-input" id="proxy-url" placeholder="例如 http://127.0.0.1:7890" style="flex: 1;">
+        <button class="btn btn-secondary" id="btn-detect-proxy" style="white-space: nowrap; height: 38px; padding: 0 12px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: var(--rounded-sm); border: 1px solid var(--hairline); background: var(--surface-soft);" title="自动检测当前系统代理">⚡ 自动检测</button>
+      </div>
+      <span class="form-hint">留空表示使用系统默认代理或直连。如果在中国大陆测试，请在此配置代理以连接 Google 接口。<br>💡 提示：系统“自动检测”仅能获取代理主机和端口，**不包含您的账号和密码**。如果您的代理需要认证，请手动修改为：`http://用户名:密码@IP:端口` 的格式。此外，即使端口是 443，如果是普通的 HTTP 代理，也请保持 `http://` 前缀而不要写成 `https://`。</span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="gemini-voice">Gemini 声音选择</label>
+      <select class="form-input" id="gemini-voice" style="padding: 10px 12px; height: 38px; cursor: pointer;">
+        <option value="Aoede" selected>Aoede (推荐 - 清亮女声)</option>
+        <option value="Kore">Kore (明亮女声)</option>
+        <option value="Puck">Puck (男中音)</option>
+        <option value="Charon">Charon (温和男声)</option>
+        <option value="Fenrir">Fenrir (深沉男声)</option>
+      </select>
+      <span class="form-hint">配置 Gemini 会话所输出的语音角色。</span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="system-prompt">自定义 System Prompt</label>
+      <textarea class="form-textarea" id="system-prompt" placeholder="留空则使用内置默认 Prompt。在此输入的指令会指导 Gemini 如何响应你。"></textarea>
+      <span class="form-hint">配置 Gemini 会话的角色定位。如：“你是一位幽默的 Python 导师...”</span>
+    </div>
+  </div>
+
+  <!-- 底部操作按钮 -->
+  <div class="footer">
+    <button class="btn btn-secondary" style="height: 36px; font-size: 13px; margin-right: auto;" id="btn-test">🔌 测试连接</button>
+    <button class="btn btn-secondary" style="height: 36px; font-size: 13px;" id="btn-cancel">取消</button>
+    <button class="btn btn-primary" style="height: 36px; font-size: 13px;" id="btn-save">保存设置</button>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">设置已保存，新配置将在下次连接时生效</div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const apiKeyInput = document.getElementById('api-key');
+      const btnToggleApikey = document.getElementById('btn-toggle-apikey');
+      const proxyUrlInput = document.getElementById('proxy-url');
+      const btnDetectProxy = document.getElementById('btn-detect-proxy');
+      const geminiVoiceSelect = document.getElementById('gemini-voice');
+      const systemPromptInput = document.getElementById('system-prompt');
+      const btnClose = document.getElementById('btn-close');
+      const btnCancel = document.getElementById('btn-cancel');
+      const btnSave = document.getElementById('btn-save');
+      const btnTest = document.getElementById('btn-test');
+      const toast = document.getElementById('toast');
+
+      let apiKeyDecrypted = false;
+      let decryptedKey = '';
+
+      const showToast = (msg) => {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 3000);
+      };
+
+      // 1. 关闭/取消事件
+      const closeWindow = () => {
+        if (window.electronAPI) {
+          window.electronAPI.close();
+        }
+      };
+      btnClose.addEventListener('click', closeWindow);
+      btnCancel.addEventListener('click', closeWindow);
+
+      // 2. API Key 可见性切换
+      btnToggleApikey.addEventListener('click', async () => {
+        if (apiKeyInput.type === 'password') {
+          if (!apiKeyDecrypted && apiKeyInput.value === '••••••••') {
+            try {
+              if (window.electronAPI) {
+                decryptedKey = await window.electronAPI.getDecryptedApiKey();
+                apiKeyInput.value = decryptedKey;
+                apiKeyDecrypted = true;
+              }
+            } catch (e) {
+              console.error('Failed to get decrypted API Key:', e);
+              showToast('解密 API Key 失败');
+            }
+          }
+          apiKeyInput.type = 'text';
+          btnToggleApikey.textContent = '🙈';
+        } else {
+          apiKeyInput.type = 'password';
+          btnToggleApikey.textContent = '👁️';
+        }
+      });
+
+      // 3. 自动检测系统代理
+      btnDetectProxy.addEventListener('click', async () => {
+        btnDetectProxy.disabled = true;
+        btnDetectProxy.textContent = '检测中...';
+        try {
+          if (window.electronAPI) {
+            const res = await window.electronAPI.resolveSystemProxy();
+            if (res.success) {
+              proxyUrlInput.value = res.proxyUrl;
+              showToast('已成功检测并自动填入系统代理！');
+            } else {
+              showToast(res.message);
+            }
+          }
+        } catch (e) {
+          console.error(e);
+          showToast('代理检测异常: ' + e.message);
+        } finally {
+          btnDetectProxy.disabled = false;
+          btnDetectProxy.textContent = '⚡ 自动检测';
+        }
+      });
+
+      // 4. 载入现有设置
+      if (window.electronAPI) {
+        try {
+          const settings = await window.electronAPI.getSettings();
+          apiKeyInput.value = settings.apiKeyMasked || '';
+          proxyUrlInput.value = settings.proxyUrl || '';
+          systemPromptInput.value = settings.systemPrompt || '';
+          if (settings.geminiVoice) {
+            geminiVoiceSelect.value = settings.geminiVoice;
+          }
+        } catch (e) {
+          console.error('Failed to load settings:', e);
+        }
+      }
+
+      // 5. 保存设置
+      btnSave.addEventListener('click', async () => {
+        const apiKey = apiKeyInput.value.trim();
+        const proxyUrl = proxyUrlInput.value.trim();
+        const geminiVoice = geminiVoiceSelect.value;
+        const systemPrompt = systemPromptInput.value.trim();
+
+        if (window.electronAPI) {
+          try {
+            await window.electronAPI.saveSettings({
+              apiKey,
+              proxyUrl,
+              geminiVoice,
+              systemPrompt
+            });
+            
+            // 显示 Toast 并自动关闭窗口
+            showToast('设置已保存，新配置将在下次连接时生效');
+            setTimeout(() => {
+              closeWindow();
+            }, 1500);
+          } catch (e) {
+            alert('保存设置失败: ' + e.message);
+          }
+        }
+      });
+
+      // 6. 测试连接事件
+      btnTest.addEventListener('click', async () => {
+        const apiKey = apiKeyInput.value.trim();
+        const proxyUrl = proxyUrlInput.value.trim();
+
+        btnTest.disabled = true;
+        btnTest.textContent = '🔌 正在测试...';
+
+        try {
+          if (window.electronAPI) {
+            const res = await window.electronAPI.testConnection({ apiKey, proxyUrl });
+            if (res.success) {
+              if (res.autoCorrected) {
+                proxyUrlInput.value = res.correctedProxyUrl;
+                alert(`🎉 连接成功！\n\n提示：检测到您的代理在 443 端口仅支持普通 HTTP 代理协议（不支持代理层 TLS 握手）。\n已自动将代理协议修正为: ${res.correctedProxyUrl}，请点击保存。`);
+              } else if (res.autoDetected) {
+                const useDetected = confirm(`🎉 连接成功（自动使用系统代理）！\n\n检测到您的系统代理为: ${res.detectedProxyUrl}\n是否一键填入该代理以固化配置？`);
+                if (useDetected) {
+                  proxyUrlInput.value = res.detectedProxyUrl;
+                }
+              } else if (res.mode === 'direct') {
+                alert('🎉 连接成功（直连/TUN 模式网络畅通）！');
+              } else {
+                alert('🎉 连接成功！API Key 和代理配置验证通过。');
+              }
+            } else {
+              alert('❌ 连接失败\n原因: ' + res.message);
+            }
+          }
+        } catch (e) {
+          alert('❌ 测试网络连接发生异常: ' + e.message);
+        } finally {
+          btnTest.disabled = false;
+          btnTest.textContent = '🔌 测试连接';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
