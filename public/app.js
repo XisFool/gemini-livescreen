@@ -265,13 +265,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let preMuteVolume = 1.0;
 
   function updateVolumeIcon(val) {
-    if (!btnVolumeMute) return;
-    if (val === 0) {
-      btnVolumeMute.textContent = '🔇';
-    } else if (val < 0.5) {
-      btnVolumeMute.textContent = '🔈';
-    } else {
-      btnVolumeMute.textContent = '🔊';
+    if (btnVolumeMute) {
+      if (val === 0) {
+        btnVolumeMute.textContent = '🔇';
+      } else if (val < 0.5) {
+        btnVolumeMute.textContent = '🔈';
+      } else {
+        btnVolumeMute.textContent = '🔊';
+      }
+    }
+    const volumeValueSpan = document.getElementById('volume-value');
+    if (volumeValueSpan) {
+      volumeValueSpan.textContent = Math.round(val * 100);
     }
   }
 

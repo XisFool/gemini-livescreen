@@ -1,8 +1,18 @@
-# LiveScreen 🚀
+# Gemini LiveScreen 🚀
 
-> **基于 Gemini Live API 的实时多模态屏幕与语音辅导桌面应用**
+> **基于 Gemini Live API 的原生 Electron 桌面级实时屏幕与语音辅导助手**
 
-LiveScreen 是一款将您的电脑屏幕和麦克风音频以极低延迟传输至 Google Gemini 实时会话（`gemini-3.1-flash-live-preview`）的创新型辅助教学工具。它不仅支持实时屏幕帧采样和音频双向流互动，还融合了极具现代感的 Clay.com 粘土风格视觉美学，为您提供宛如原生科幻般的屏幕辅导体验。
+Gemini LiveScreen 是一款将您的电脑屏幕和麦克风音频以极低端到端延迟（E2E）传输至 Google Gemini 实时多模态会话（`gemini-3.1-flash-live-preview`）的桌面级 AI 屏幕辅导工具。它融合了极其 premium 且具现代感的 Clay.com 3D 粘土风格微质感视觉美学，为您提供极低连线阻碍、开箱即用的 AI 伴侣体验。
+
+---
+
+## 🖥️ 效果展示
+
+我们为应用注入了全新的 3D 内阴影高光粘土质感和磨砂玻璃美学设计：
+
+| 🚀 主窗口与实时屏幕交互 | ⚙️ 安全设置与代理网络测试 |
+| :---: | :---: |
+| ![LiveScreen 主窗口](assets/screenshot_main.png) | ![设置面板](assets/screenshot_settings.png) |
 
 ---
 

@@ -233,7 +233,7 @@
       <div class="volume-control-wrapper" style="display: flex; align-items: center; gap: 4px; background: transparent; border: 1px solid var(--hairline); padding: 4px 8px; border-radius: var(--rounded-pill); max-width: 125px;">
         <span id="btn-volume-mute" style="cursor: pointer; user-select: none; font-size: 13px;" title="静音/取消静音">🔊</span>
         <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1.0" style="width: 45px; height: 4px; accent-color: var(--primary); cursor: pointer;" title="调节音量">
-        <span id="volume-value" style="font-size: 10px; min-width: 28px; text-align: right; color: var(--muted); font-family: monospace;">100%</span>
+        <span id="volume-value" style="font-size: 10px; min-width: 28px; text-align: right; color: var(--muted); font-family: monospace;">100</span>
       </div>
     </div>
   </div>
@@ -280,13 +280,18 @@
       let preMuteVolume = 1.0;
 
       function updateVolumeIcon(val) {
-        if (!btnVolumeMute) return;
-        if (val === 0) {
-          btnVolumeMute.textContent = '🔇';
-        } else if (val < 0.5) {
-          btnVolumeMute.textContent = '🔈';
-        } else {
-          btnVolumeMute.textContent = '🔊';
+        if (btnVolumeMute) {
+          if (val === 0) {
+            btnVolumeMute.textContent = '🔇';
+          } else if (val < 0.5) {
+            btnVolumeMute.textContent = '🔈';
+          } else {
+            btnVolumeMute.textContent = '🔊';
+          }
+        }
+        const volumeValueSpan = document.getElementById('volume-value');
+        if (volumeValueSpan) {
+          volumeValueSpan.textContent = Math.round(val * 100);
         }
       }
 
