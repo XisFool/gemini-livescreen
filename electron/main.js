@@ -728,14 +728,15 @@ app.whenReady().then(async () => {
   session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
     // 安全校验：验证请求发起方的 Origin，防止外部页面或恶意注入脚本静默录屏
     try {
-      const originUrl = new URL(request.frame.getURL());
+      const frameUrl = request.frame ? request.frame.url : '';
+      const originUrl = new URL(frameUrl || 'http://localhost');
       if (originUrl.protocol !== 'file:' && originUrl.hostname !== 'localhost' && originUrl.hostname !== '127.0.0.1' && originUrl.hostname !== '::1') {
         console.warn(`[Security Block] Screen capture request from unauthorized origin: ${originUrl.href}`);
-        return callback({ error: 'Unauthorized origin for display media' });
+        return callback({}); // 返回空对象拒绝请求
       }
     } catch (e) {
       console.error('[Security Error] Failed to parse request frame URL:', e);
-      return callback({ error: 'Invalid origin validation' });
+      return callback({}); // 返回空对象拒绝请求
     }
 
     desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
@@ -743,11 +744,12 @@ app.whenReady().then(async () => {
       if (primarySource) {
         callback({ video: primarySource });
       } else {
-        callback({ error: 'No video sources found' });
+        console.warn('[Display Media] No video sources found.');
+        callback({}); // 返回空对象拒绝请求
       }
     }).catch(err => {
       console.error('Failed to get sources for display media request:', err);
-      callback({ error: err.message });
+      callback({}); // 返回空对象拒绝请求
     });
   }, { useSystemPicker: false });
 
