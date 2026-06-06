@@ -112,6 +112,22 @@ wss.on('connection', async (ws) => {
 
   let session;
   let pendingQueue = [];
+  let isFlushing = false;
+
+  async function flushQueue() {
+    if (isFlushing) return;
+    isFlushing = true;
+    console.log(`[Queue] Gemini session ready. Flushing ${pendingQueue.length} buffered message(s)...`);
+    while (pendingQueue.length > 0) {
+      const rawData = pendingQueue.shift();
+      try {
+        await sendToSession(rawData);
+      } catch (e) {
+        console.error("[Queue] Error flushing data:", e);
+      }
+    }
+    isFlushing = false;
+  }
 
   async function sendToSession(data) {
     if (!session) return;
@@ -249,18 +265,8 @@ wss.on('connection', async (ws) => {
     console.log(`Gemini Live Session initialized successfully using model ${modelName}.`);
     ws.send(JSON.stringify({ type: 'status', payload: { message: 'Gemini Live Session Ready' } }));
 
-    // 消费暂存的消息队列
-    if (pendingQueue.length > 0) {
-      console.log(`[Queue] Gemini session ready. Flushing ${pendingQueue.length} buffered message(s)...`);
-      for (const rawData of pendingQueue) {
-        try {
-          await sendToSession(rawData);
-        } catch (e) {
-          console.error("[Queue] Error flushing data:", e);
-        }
-      }
-      pendingQueue = [];
-    }
+    // 消费暂存的消息队列（采用串行安全消费）
+    await flushQueue();
 
   } catch (error) {
     console.error("Failed to connect to Gemini Live API:", error);
@@ -275,9 +281,12 @@ wss.on('connection', async (ws) => {
   // Handle incoming messages from client WebSocket
   ws.on('message', async (data) => {
     try {
-      if (!session) {
+      if (!session || isFlushing) {
         pendingQueue.push(data);
-        console.log(`[Queue] Gemini session not ready. Buffered client message type: ${JSON.parse(data).type}`);
+        console.log(`[Queue] Buffered client message type: ${JSON.parse(data).type}`);
+        if (session) {
+          await flushQueue();
+        }
         return;
       }
       await sendToSession(data);

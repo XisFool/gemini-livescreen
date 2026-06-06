@@ -10,8 +10,28 @@ const originalTlsConnect = tls.connect;
 tls.connect = function (...args) {
   const socket = originalTlsConnect.apply(this, args);
   if (socket && typeof socket.on === 'function') {
+    // 动态提取 TLS 目标 Host 字段
+    let host = '';
+    if (args[0] && typeof args[0] === 'object') {
+      host = args[0].host || args[0].servername || '';
+    } else if (typeof args[1] === 'string') {
+      host = args[1];
+    } else if (args[2] && typeof args[2] === 'object') {
+      host = args[2].host || args[2].servername || '';
+    }
+
     socket.on('error', (err) => {
-      console.warn('[TLS Socket Interceptor] Suppressed socket error to prevent crash:', err.message);
+      // 精确拦截：仅当目标 host 指向 Google API 或者是本地配置的代理服务时，压制未捕获异常
+      const isGoogleOrProxy = host.includes('googleapis.com') || 
+                              host.includes('google') ||
+                              (process.env.HTTPS_PROXY && host !== '' && process.env.HTTPS_PROXY.includes(host));
+
+      if (isGoogleOrProxy || err.message.includes('tunneling socket could not be established')) {
+        console.warn(`[TLS Socket Interceptor] Suppressed TLS connection error for ${host || 'Gemini Proxy'}:`, err.message);
+      } else {
+        // 其他正常的业务连接（如普通三方包）TLS 错误，仍然作为常规 error 输出记录，方便排查
+        console.error(`[TLS Socket Error] Encountered error connecting to ${host || 'unknown host'}:`, err);
+      }
     });
   }
   return socket;
@@ -704,8 +724,20 @@ app.whenReady().then(async () => {
     }
   });
 
-  // 拦截渲染进程的 getDisplayMedia 请求，自动授权首个屏幕源，解决 Electron 默认权限拦截问题
+  // 拦截渲染进程的 getDisplayMedia 请求，验证来源并自动授权屏幕源，解决 Electron 默认权限拦截问题
   session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    // 安全校验：验证请求发起方的 Origin，防止外部页面或恶意注入脚本静默录屏
+    try {
+      const originUrl = new URL(request.frame.getURL());
+      if (originUrl.protocol !== 'file:' && originUrl.hostname !== 'localhost' && originUrl.hostname !== '127.0.0.1') {
+        console.warn(`[Security Block] Screen capture request from unauthorized origin: ${originUrl.href}`);
+        return callback({ error: 'Unauthorized origin for display media' });
+      }
+    } catch (e) {
+      console.error('[Security Error] Failed to parse request frame URL:', e);
+      return callback({ error: 'Invalid origin validation' });
+    }
+
     desktopCapturer.getSources({ types: ['screen', 'window'] }).then((sources) => {
       const primarySource = sources.find(s => s.id.startsWith('screen:')) || sources[0];
       if (primarySource) {

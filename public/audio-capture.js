@@ -102,13 +102,8 @@ class AudioCapture {
       this.workletNode = null;
     }
 
-    // Suspend context instead of closing to preserve hardware resources
-    if (this.audioContext) {
-      try {
-        this.audioContext.suspend();
-      } catch (e) {}
-      this.audioContext = null;
-    }
+    // 只释放对共享 Context 的本地指针引用，不执行挂起以防止阻塞 AudioPlayer 播放
+    this.audioContext = null;
 
     // Stop all media tracks
     if (this.mediaStream) {
