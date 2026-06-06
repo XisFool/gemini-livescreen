@@ -1,8 +1,8 @@
 # LiveScreen 进度
 
 ## 现在在做
-- 阶段：全面 Code Review + Subagent 静态测试整改（已完成，新增体验交互调优）
-- 停在：完成了 IPC 监听器泄漏修复（safeOn + beforeunload 清理）、flushQueue try-finally 锁保护、screenCapture null 守卫、package.json 隐式依赖补全、Origin 白名单加 IPv6 ::1、Markdown \r\n 兼容、AudioContext fallback 采样率修正、style.css disabled 态补全等共 15 项整改，并全新优化了迷你窗关闭隐藏行为，彻底打通了 Gemini 实时语音打断（Barge-in）双端链路。
+- 阶段：全面 Code Review + Subagent 静态测试整改（已完成，新增体验交互调优与全自动发布）
+- 停在：完成了多维度静态分析整改、迷你窗关闭隐藏、Gemini 语音打断，并成功配置与部署了基于 GitHub Actions 的 CI/CD 自动打包发布构建流程。
 - 下一步：开始进行 Phase 2 的窗口与屏幕共享源视觉选择组件，以及屏幕涂鸦工具的设计
 
 ## 近期待办（3条以内）
@@ -42,6 +42,7 @@
 | Code Review 整改 | 9 维度静态分析整改 15 项（IPC 泄漏、锁防护、依赖补全、Origin ::1、Markdown 兼容等） | 🟢 已完成 | 全项目文件覆盖 |
 | 迷你窗关闭优化 | 点击迷你窗关闭按钮仅 hide 隐藏不退出，主窗口关闭才真正退出 | 🟢 已完成 | main.js 与 mini.html 实现 |
 | 实时语音打断 | 引入服务端 interrupted 信号并通知前端触发播放器瞬间静音和气泡置灰 | 🟢 已完成 | server.js 与 app.js 实现 |
+| 自动化发布部署 | 配置 workflows/release.yml，推送标签触发云端 Actions 打包发布 | 🟢 已完成 | package.json 与 release.yml 实现 |
 
 ---
 
