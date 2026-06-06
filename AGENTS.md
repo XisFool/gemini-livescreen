@@ -52,6 +52,7 @@
 - 更改 WebSocket 消息交互协议（`text`, `audio`, `frame`, `text_chunk`, `audio_chunk`, `turn_complete`, `status`）。
 - 更换或升级底层的 `@google/genai` 依赖库。
 - 将 `responseModalities` 从仅 `['AUDIO']` 修改为其它多模态组合。
+- **在执行 Commit 之前必须先询问用户，让用户测试或决定好后再进行 commit。在 commit 之后，需要做好整个项目的收尾工作（例如检查 `.gitignore` 的配置、更新相关 `.md` 文档等）。**
 
 **Never Do**
 - **千万不要**在 `index.html` 或 `main-app.html` 中直接通过 `<script src="audio-worklet.js">` 引用音频工作处理器，这会造成主线程 `AudioWorkletProcessor is not defined` 的加载崩溃。
