@@ -411,6 +411,15 @@ function handleIncomingMessage(message) {
       updateWsStatus('connected', message.payload.message);
       break;
 
+    case 'interrupted':
+      if (audioPlayer) {
+        audioPlayer.stop();
+      }
+      isStreaming = false;
+      currentAiMessageElement = null;
+      console.log("Gemini response interrupted by user.");
+      break;
+
     case 'audio_chunk':
       if (audioPlayer) {
         audioPlayer.playChunk(message.payload.data);

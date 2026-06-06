@@ -196,6 +196,11 @@ wss.on('connection', async (ws) => {
       },
       callbacks: {
         onmessage: (message) => {
+          // Check for barge-in interruption signal
+          if (message.serverContent?.interrupted) {
+            ws.send(JSON.stringify({ type: 'interrupted' }));
+          }
+
           // Check for input/output transcriptions
           if (message.serverContent?.inputTranscription) {
             const text = message.serverContent.inputTranscription.text;

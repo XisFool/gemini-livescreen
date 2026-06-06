@@ -491,8 +491,10 @@ function registerIpcHandlers() {
 
   ipcMain.on('window-close', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    if (win === mainWindow || win === miniWindow) {
+    if (win === mainWindow) {
       app.quit();
+    } else if (win === miniWindow) {
+      miniWindow.hide();
     } else if (win) {
       win.close();
     }
