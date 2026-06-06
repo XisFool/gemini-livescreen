@@ -22,6 +22,11 @@
     "directories": {
       "output": "dist"
     },
+    "publish": {
+      "provider": "github",
+      "owner": "XisFool",
+      "repo": "gemini-livescreen"
+    },
     "win": {
       "target": "nsis",
       "icon": "electron/assets/icon.png"
