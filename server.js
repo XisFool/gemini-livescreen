@@ -118,15 +118,18 @@ wss.on('connection', async (ws) => {
     if (isFlushing) return;
     isFlushing = true;
     console.log(`[Queue] Gemini session ready. Flushing ${pendingQueue.length} buffered message(s)...`);
-    while (pendingQueue.length > 0) {
-      const rawData = pendingQueue.shift();
-      try {
-        await sendToSession(rawData);
-      } catch (e) {
-        console.error("[Queue] Error flushing data:", e);
+    try {
+      while (pendingQueue.length > 0) {
+        const rawData = pendingQueue.shift();
+        try {
+          await sendToSession(rawData);
+        } catch (e) {
+          console.error("[Queue] Error flushing data:", e);
+        }
       }
+    } finally {
+      isFlushing = false;
     }
-    isFlushing = false;
   }
 
   async function sendToSession(data) {

@@ -336,7 +336,8 @@ function connectWebSocket() {
   updateWsStatus('connecting', '正在连接服务器...');
   
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/ws`;
+  const host = window.location.host || 'localhost:3000'; // file:// 协议下 host 为空，fallback 到 localhost
+  const wsUrl = `${protocol}//${host}/ws`;
   
   ws = new WebSocket(wsUrl);
 
@@ -370,7 +371,7 @@ function connectWebSocket() {
     enableInputArea(false);
     
     // Stop recordings and screen capture if server goes down
-    if (screenCapture.isCapturing) {
+    if (screenCapture && screenCapture.isCapturing) {
       screenCapture.stop();
       updateScreenUI(false);
     }
@@ -747,8 +748,8 @@ function renderMarkdown(text) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
   
-  // Parse triple code blocks: ```lang ... ```
-  html = html.replace(/```(?:[a-zA-Z0-9]+)?\n([\s\S]+?)\n```/g, (match, code) => {
+  // Parse triple code blocks: ```lang ... ``` (support \r\n Windows line endings)
+  html = html.replace(/```(?:[a-zA-Z0-9]+)?\r?\n([\s\S]+?)\r?\n```/g, (match, code) => {
     return `<pre><code>${code.trim()}</code></pre>`;
   });
   

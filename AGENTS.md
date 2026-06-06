@@ -1,4 +1,4 @@
-> 最后更新：2026-06-05
+> 最后更新：2026-06-06
 
 # AGENTS.md
 
@@ -86,6 +86,10 @@
 - **端口占用清理误杀防范**：`killProcessOnPort` 提取 PID 时增加 Local Address 字段校验（确保以 `:${port}` 结尾），完美杜绝了因 PID 包含目标端口号或端口前缀相似导致的其它服务进程误杀漏洞。
 - **测试连通性健壮性强化**：对测试网络探针 Promise 执行器加装了最外层的 `try-catch` 同步异常兜底，杜绝了在测试发起阶段由于参数或参数格式问题产生的同步抛错使 Promise 挂起的问题。
 - **默认声音调整为女声与输入焦点修复**：将系统默认 Gemini 输出声音由男声（Puck）修改为清亮女声（Aoede）；解决了由于 Electron 无边框拖拽区域继承问题导致设置面板内容区（select 下拉框、textarea 文本域）无法点击获取焦点的 Bug（通过在 content 与 footer 容器中显式声明 `-webkit-app-region: no-drag;` 修复）。
+19. **消息队列串行消费安全**：修复了 `pendingQueue` 异步刷写时的并发时序漏洞，采用 `isFlushing` 锁机制确保消息完全串行、顺序发送给 Gemini。
+20. **共享音源释放安全**：在 `AudioCapture.stop()` 里移除 `suspend()` 挂起调用，防止误伤共享 context 下的 AI 语音播放。
+21. **屏幕共享来源校验与 Constraints 修复**：为主进程的屏幕共享拦截加装了 Origin 安全过滤，仅允许本地协议和 localhost 申请；简化了前端 constraints 为 `{ video: true, audio: false }`，彻底解决了 `Invalid capture constraints` 导致的屏幕共享启动失败报错。
+22. **效果图排版与 TLS 压制精细化**：精细化了 `tls.connect` 报错拦截器，仅在访问 Google 服务或代理连接时压制未捕获异常，恢复其他网络报错的正常抛出；更新了效果展示图为更清晰的上下排布。
 
 ### 当前项目状态
 * **状态**：已成功集成系统代理自动注入、代理 TLS 智能 Fallback、连接测试 UI 一键固化、排队时序与端口强杀防护。默认发音设定为清亮女声（Aoede），且设置页各输入组件交互焦点已完全修复通畅。

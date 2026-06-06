@@ -1,14 +1,14 @@
 # LiveScreen 进度
 
 ## 现在在做
-- 阶段：代理自适应出网与界面交互体验调整已完成并验证通过
-- 停在：完成系统代理自动提取注入、Https 代理 Fallback 智能修正、排队时序安全性、端口清理严格匹配，并将默认发音切换为女声（Aoede），同时彻底修复了无边框拖拽导致设置面板输入域无法点击焦点的 Bug。
-- 下一步：收集复杂多设备及代理网络环境下的用户反馈
+- 阶段：代码结构安全性审计与稳定性漏洞修复（Phase 1）已验证通过
+- 停在：完成了 `pendingQueue` 并排时序竞态互斥锁、录音停止 `AudioContext.suspend()` 播放冻结 Bug、屏幕共享静默拦截 Origin 校验、TLS 全局错误压制细化，以及去除了 `getDisplayMedia` 冗余约束彻底解决了 `Invalid capture constraints` 的屏幕共享启动报错。
+- 下一步：开始进行 Phase 2 的窗口与屏幕共享源视觉选择组件，以及屏幕涂鸦工具的设计
 
 ## 近期待办（3条以内）
-- [ ] 收集用户对于主窗口“最大化/还原”拉伸布局的体验反馈
-- [ ] 观察在复杂的 Windows 系统设备（如各种蓝牙耳机）下全局唯一的共享 SharedAudioContext 表现
-- [ ] 收集不同代理客户端（Clash, Sing-box, v2ray等）下的自适应系统代理注入回传表现
+- [ ] 启动并设计 Phase 2 的 OBS 级窗口/多显示器共享选择界面
+- [ ] 收集在复杂的蓝牙或外接独占声卡设备下 SharedAudioContext 的连通表现
+- [ ] 收集不同代理环境下 TLS 错误细化拦截和警告的可视化反馈
 
 ---
 
@@ -37,6 +37,8 @@
 | 并发声卡资源归一 | 全局复用 SharedAudioContext 实例，从根本上解决冲突挂起 | 🟢 已完成 | app.js 与 audio-capture.js 实现 |
 | 端口自愈与队列缓存 | 自动强杀 3000 残留进程并增加 pendingQueue 数据缓冲 | 🟢 已完成 | main.js 与 server.js 实现 |
 | 桌面窗口体验细节 | 小窗按钮精简、显示音量百分比、去除顶栏红点、TLS 崩溃防护 | 🟢 已完成 | 实现音量数字显示与 Socket 异常拦截 |
+| 消息队列与声卡保护 | 修复 pendingQueue 异步消费竞态及 audio stop 误杀共享 Context 冻结播放 | 🟢 已完成 | server.js 与 audio-capture.js 实现 |
+| 屏幕分享安全与兼容 | setDisplayMediaRequestHandler 加入 Origin 检验并简化捕获约束解决 Invalid 错误 | 🟢 已完成 | main.js 与 screen-capture.js 实现 |
 
 ---
 
@@ -46,3 +48,6 @@
 - **本地文件协议 file:// 阻碍 AudioWorklet 加载**：在桌面端使用相对路径加载 `audio-worklet.js` 时会以 `electron/windows` 为基准引发 404，需检测 `window.location.protocol === 'file:'` 并自适应重写路径为 `../../public/audio-worklet.js`。
 - **旧 Node 进程占用 3000 端口引发默默降级连入旧版代码**：在 Electron 容错处理中如果静默降级复用占用端口，极易在开发阶段连入旧版未关闭的 Node 网页服务后台。应在桌面端初始化时利用 `netstat` 检测并安全强杀残留的 `node` 僵尸进程。
 - **多 AudioContext 采样率竞争声卡引发挂起**：在 Windows 蓝牙耳机或独占声卡上同时激活 16000Hz (录音) 和 24000Hz (播音) 双通道易锁死声卡，应当归一化为唯一的全局 `SharedAudioContext` 并仅在发送前做软件降采样。
+- **`pendingQueue` 在 `await` 期间面临新消息并发插队时序漏洞**：在 session 建立后循环消费 pendingQueue 时，若使用 `for...of` 和 `await`，因为 yields 会让出事件循环，使中途到达的新 WS 消息直接通过 `session.send` 绕过队列被 Gemini 消费。需要使用 `isFlushing` 状态锁强制排空后再允许直连。
+- **停止录音时 `AudioContext.suspend()` 会误伤共享的播放器声道**：在全局单例 AudioContext 模式下，对麦克风进行 `suspend()` 释放设备会导致同属一个 context 的 AudioPlayer 也无法播放。只需断开输入节点并 `stop()` track，保持上下文活跃即可。
+- **Chromium 在 Electron 拦截模式下对高级 constraints 的校验限制**：在 `getDisplayMedia` 中使用 `displaySurface: 'monitor'` 和指定的 `frameRate` 会在 Electron 默认拦截场景下引发 `OverconstrainedError` 并报错 `Invalid capture constraints`。需要将 constraints 简化为最纯净的 `{ video: true, audio: false }`。

@@ -729,7 +729,7 @@ app.whenReady().then(async () => {
     // 安全校验：验证请求发起方的 Origin，防止外部页面或恶意注入脚本静默录屏
     try {
       const originUrl = new URL(request.frame.getURL());
-      if (originUrl.protocol !== 'file:' && originUrl.hostname !== 'localhost' && originUrl.hostname !== '127.0.0.1') {
+      if (originUrl.protocol !== 'file:' && originUrl.hostname !== 'localhost' && originUrl.hostname !== '127.0.0.1' && originUrl.hostname !== '::1') {
         console.warn(`[Security Block] Screen capture request from unauthorized origin: ${originUrl.href}`);
         return callback({ error: 'Unauthorized origin for display media' });
       }

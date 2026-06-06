@@ -13,6 +13,7 @@
     "@google/genai": "^2.8.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "https-proxy-agent": "^7.0.0",
     "ws": "^8.17.0"
   },
   "build": {
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "electron": "^42.3.3",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "nodemon": "^3.0.0"
   }
 }
