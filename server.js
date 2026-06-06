@@ -302,6 +302,8 @@ wss.on('connection', async (ws) => {
   ws.on('close', () => {
     console.log("Client disconnected. Cleaning up Gemini Session...");
     clearInterval(pingInterval); // 清理探活定时器
+    isFlushing = false;          // 重置锁，防止状态残留阻塞后续连接
+    pendingQueue = [];            // 清空未消费队列
     if (session) {
       try {
         session.close();

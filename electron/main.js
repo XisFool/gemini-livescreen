@@ -467,6 +467,7 @@ function createSettingsWindow() {
 }
 
 function registerIpcHandlers() {
+  let lastFrame = null; // 提升至函数顶部，避免 cmd-stop-screen handler 引用前置位面临时 TDZ 依赖
   // 窗口基本控制
   ipcMain.on('window-minimize', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
@@ -557,8 +558,7 @@ function registerIpcHandlers() {
     }
   });
 
-  // 接收预览帧
-  let lastFrame = null;
+  // 接收预览帧（主窗口 → 主进程）
   ipcMain.on('preview-frame-update', (_, base64JPEG) => {
     lastFrame = base64JPEG;
   });
@@ -749,7 +749,7 @@ app.whenReady().then(async () => {
       console.error('Failed to get sources for display media request:', err);
       callback({ error: err.message });
     });
-  });
+  }, { useSystemPicker: false });
 
   createMainWindow();
   createMiniWindow();

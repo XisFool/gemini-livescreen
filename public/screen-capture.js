@@ -12,11 +12,10 @@ class ScreenCapture {
     try {
       // Prompt user to select screen or window
       this.stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          displaySurface: 'monitor',
-          frameRate: { ideal: 5, max: 10 }
-        },
-        audio: false // We capture audio separately from microphone
+        video: true
+        // audio 字段省略：Electron 42.x setDisplayMediaRequestHandler 激活时
+        // audio: false 布尔值会被 constraints 校验器拒绝导致 Invalid capture constraints
+        // 主进程 handler 仅 callback({ video }) 不返回音频轨道，安全等价
       });
 
       this.videoElement.srcObject = this.stream;

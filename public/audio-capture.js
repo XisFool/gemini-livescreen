@@ -24,13 +24,16 @@ class AudioCapture {
       });
       if (window.MediaRegistry) window.MediaRegistry.registerStream(this.mediaStream);
 
-      // 2. Initialize or reuse AudioContext (preferably using window.getSharedAudioContext)
+      // 2. 优先复用全局共享 AudioContext（与 AudioPlayer 共享同一上下文，避免声卡竞争）
       if (window.getSharedAudioContext) {
         AudioCapture.globalContext = window.getSharedAudioContext();
       } else if (!AudioCapture.globalContext) {
+        // Fallback：getSharedAudioContext 不可用时（网页版脱离 app.js 独立使用的极端场景）
+        // 注意：采样率与 AudioPlayer 对齐使用 24000，降采样到 16000 在 worklet 消息回调中处理
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        AudioCapture.globalContext = new AudioContextClass({ sampleRate: 16000 });
+        AudioCapture.globalContext = new AudioContextClass({ sampleRate: 24000 });
         if (window.MediaRegistry) window.MediaRegistry.registerContext(AudioCapture.globalContext);
+        console.warn('[AudioCapture] Shared AudioContext unavailable. Created standalone context at 24000Hz.');
       }
 
       // 3. Register and load the AudioWorklet (Only add once per context)
