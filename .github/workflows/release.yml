@@ -8,6 +8,8 @@ on:
 jobs:
   release:
     runs-on: windows-latest
+    permissions:
+      contents: write # 授予 token 创建发布和上传附件的写权限，解决默认只读导致的 403 报错
 
     steps:
       - name: Checkout Code
