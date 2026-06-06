@@ -1,8 +1,8 @@
 # LiveScreen 进度
 
 ## 现在在做
-- 阶段：全面 Code Review + Subagent 9 维度静态测试整改（已完成）
-- 停在：完成了 IPC 监听器泄漏修复（safeOn + beforeunload 清理）、flushQueue try-finally 锁保护、screenCapture null 守卫、package.json 隐式依赖补全、Origin 白名单加 IPv6 ::1、Markdown \r\n 兼容、AudioContext fallback 采样率修正、style.css disabled 态补全等共 15 项整改。
+- 阶段：全面 Code Review + Subagent 静态测试整改（已完成，新增体验交互调优）
+- 停在：完成了 IPC 监听器泄漏修复（safeOn + beforeunload 清理）、flushQueue try-finally 锁保护、screenCapture null 守卫、package.json 隐式依赖补全、Origin 白名单加 IPv6 ::1、Markdown \r\n 兼容、AudioContext fallback 采样率修正、style.css disabled 态补全等共 15 项整改，并全新优化了迷你窗关闭隐藏行为，彻底打通了 Gemini 实时语音打断（Barge-in）双端链路。
 - 下一步：开始进行 Phase 2 的窗口与屏幕共享源视觉选择组件，以及屏幕涂鸦工具的设计
 
 ## 近期待办（3条以内）
@@ -30,7 +30,7 @@
 | 悬浮窗自适应拉伸 | CSS 容器查询，极窄高度下 100% 预览图像，预览图 drag | 🟢 已完成 | mini.html 实现 |
 | 连接连通性测试 | 保存设置前直接通过 IPC 探测 Google API 与代理连线状态 | 🟢 已完成 | 实现智能代理协议 Fallback 与系统代理自适应提取 |
 | 桌面端原生集成 | 原生系统托盘 (Tray)、系统消息 (Notification) | 🟢 已完成 | main.js 实现 |
-| 系统全局快捷键 | Alt+Space 热键智能切换主窗口与小窗，退出解绑 | 🟢 已完成 | main.js 实现 |
+| system 全局快捷键 | Alt+Space 热键智能切换主窗口与小窗，退出解绑 | 🟢 已完成 | main.js 实现 |
 | 物理媒体防漏电 | 捕获 beforeunload 遍历 MediaRegistry 所有轨物理 stop | 🟢 已完成 | 隐私安全层 |
 | 最大化/还原控制按钮 | 自定义无边框标题栏新增 ⬜/❐ 最大化控制及双向状态同步 | 🟢 已完成 | main-app.html 与 main.js 实现 |
 | API 废弃与路径兼容 | 适配最新 Gemini `audio`/`video` 格式及 `file://` 寻址 | 🟢 已完成 | server.js 与 audio-capture.js 实现 |
@@ -40,6 +40,8 @@
 | 消息队列与声卡保护 | 修复 pendingQueue 异步消费竞态及 audio stop 误杀共享 Context 冻结播放 | 🟢 已完成 | server.js 与 audio-capture.js 实现 |
 | 屏幕分享安全与兼容 | setDisplayMediaRequestHandler 加入 Origin 检验并省略 audio 约束解决 Invalid 错误 | 🟢 已完成 | main.js 与 screen-capture.js 实现 |
 | Code Review 整改 | 9 维度静态分析整改 15 项（IPC 泄漏、锁防护、依赖补全、Origin ::1、Markdown 兼容等） | 🟢 已完成 | 全项目文件覆盖 |
+| 迷你窗关闭优化 | 点击迷你窗关闭按钮仅 hide 隐藏不退出，主窗口关闭才真正退出 | 🟢 已完成 | main.js 与 mini.html 实现 |
+| 实时语音打断 | 引入服务端 interrupted 信号并通知前端触发播放器瞬间静音和气泡置灰 | 🟢 已完成 | server.js 与 app.js 实现 |
 
 ---
 
@@ -54,5 +56,6 @@
 - **Chromium 在 Electron 拦截模式下对 audio 约束的校验限制**：在 `getDisplayMedia` 中传入 `audio: false`（布尔值）会被 Electron 42.x 的 `setDisplayMediaRequestHandler` 激活时的 constraints 校验器直接拒绝，抛出 `Invalid capture constraints`。正确做法是完全省略 `audio` 字段，主进程 handler 仅 `callback({ video })` 不返回音频轨道，安全等价。
 - **IPC 监听器在页面重载时累积泄漏**：`preload.js` 中通过 `ipcRenderer.on` 注册的监听器没有对应清理，页面多次重载后监听器累积。应使用 `safeOn` 封装记录所有频道，并在 `window.beforeunload` 时统一调用 `removeAllListeners`。
 - **Windows IPv6 环境下 localhost 解析为 ::1 被 Origin 白名单误拒**：Origin 校验仅包含 `localhost` 和 `127.0.0.1` 时，在部分 Windows 系统 IPv6 优先配置下，本地请求的 hostname 会为 `::1`，被错误拦截导致屏幕共享失败。需在白名单中显式追加 `::1`。
+- **Gemini 语音打断必须依赖服务端 `interrupted` 事件状态转发**：在长开麦模式下，当 AI 播音中途用户开始说话，客户端无法自行判断何时打断。必须由后端 `server.js` 监听 Gemini 回包中的 `serverContent.interrupted === true` 信号，并用自定义 WS 包实时通知渲染进程 `audioPlayer.stop()` 瞬间停止播放，否则会出现用户讲话时 AI 仍旧滔滔不绝的问题。
 
 
