@@ -89,8 +89,8 @@
 19. **消息队列串行消费安全**：修复了 `pendingQueue` 异步刷写时的并发时序漏洞，采用 `isFlushing` 锁机制确保消息完全串行、顺序发送给 Gemini。
 20. **共享音源释放安全**：在 `AudioCapture.stop()` 里移除 `suspend()` 挂起调用，防止误伤共享 context 下的 AI 语音播放。
 21. **屏幕共享来源校验与 Constraints 修复**：为主进程的屏幕共享拦截加装了 Origin 安全过滤，仅允许本地协议和 localhost 申请；简化了前端 constraints 为 `{ video: true, audio: false }`，彻底解决了 `Invalid capture constraints` 导致的屏幕共享启动失败报错。
-22. **效果图排版与 TLS 压制精细化**：精细化了 `tls.connect` 报错拦截器，仅在访问 Google 服务或代理连接时压制未捕获异常，恢复其他网络报错的正常抛出；更新了效果展示图为更清晰的上下排布。
+23. **全面 Code Review 与 Subagent 静态测试整改**：基于 9 维度（逻辑错误、边界情况、Null 引用、竞态、安全漏洞、资源管理、API 契约、UI 一致性、AGENTS 合规）进行完整静态分析，共识别并修复 15 项问题（含 IPC 监听器泄漏修复、flushQueue try-finally 锁保护、screenCapture null 守卫、package.json 隐式依赖补全、Origin 白名单加 IPv6 ::1、Markdown \r\n 兼容、AudioContext fallback 采样率修正等）。同时完成 preload.js safeOn 封装统一清理、style.css disabled 态补全、settings.html HTML 标签修正等 UI 细节。
 
 ### 当前项目状态
-* **状态**：已成功集成系统代理自动注入、代理 TLS 智能 Fallback、连接测试 UI 一键固化、排队时序与端口强杀防护。默认发音设定为清亮女声（Aoede），且设置页各输入组件交互焦点已完全修复通畅。
+* **状态**：已完成全面 Code Review（项目结构 + UI）与 Subagent 静态测试整改。屏幕共享 `Invalid capture constraints` Bug 已修复，IPC 监听器泄漏、消息队列锁防护、依赖声明、Origin 白名单、Markdown 渲染兼容性等问题均已修复并 committed。项目当前处于稳定可用状态。
 

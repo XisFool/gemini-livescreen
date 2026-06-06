@@ -1,8 +1,8 @@
 # LiveScreen 进度
 
 ## 现在在做
-- 阶段：代码结构安全性审计与稳定性漏洞修复（Phase 1）已验证通过
-- 停在：完成了 `pendingQueue` 并排时序竞态互斥锁、录音停止 `AudioContext.suspend()` 播放冻结 Bug、屏幕共享静默拦截 Origin 校验、TLS 全局错误压制细化，以及去除了 `getDisplayMedia` 冗余约束彻底解决了 `Invalid capture constraints` 的屏幕共享启动报错。
+- 阶段：全面 Code Review + Subagent 9 维度静态测试整改（已完成）
+- 停在：完成了 IPC 监听器泄漏修复（safeOn + beforeunload 清理）、flushQueue try-finally 锁保护、screenCapture null 守卫、package.json 隐式依赖补全、Origin 白名单加 IPv6 ::1、Markdown \r\n 兼容、AudioContext fallback 采样率修正、style.css disabled 态补全等共 15 项整改。
 - 下一步：开始进行 Phase 2 的窗口与屏幕共享源视觉选择组件，以及屏幕涂鸦工具的设计
 
 ## 近期待办（3条以内）
@@ -38,7 +38,8 @@
 | 端口自愈与队列缓存 | 自动强杀 3000 残留进程并增加 pendingQueue 数据缓冲 | 🟢 已完成 | main.js 与 server.js 实现 |
 | 桌面窗口体验细节 | 小窗按钮精简、显示音量百分比、去除顶栏红点、TLS 崩溃防护 | 🟢 已完成 | 实现音量数字显示与 Socket 异常拦截 |
 | 消息队列与声卡保护 | 修复 pendingQueue 异步消费竞态及 audio stop 误杀共享 Context 冻结播放 | 🟢 已完成 | server.js 与 audio-capture.js 实现 |
-| 屏幕分享安全与兼容 | setDisplayMediaRequestHandler 加入 Origin 检验并简化捕获约束解决 Invalid 错误 | 🟢 已完成 | main.js 与 screen-capture.js 实现 |
+| 屏幕分享安全与兼容 | setDisplayMediaRequestHandler 加入 Origin 检验并省略 audio 约束解决 Invalid 错误 | 🟢 已完成 | main.js 与 screen-capture.js 实现 |
+| Code Review 整改 | 9 维度静态分析整改 15 项（IPC 泄漏、锁防护、依赖补全、Origin ::1、Markdown 兼容等） | 🟢 已完成 | 全项目文件覆盖 |
 
 ---
 
@@ -50,4 +51,8 @@
 - **多 AudioContext 采样率竞争声卡引发挂起**：在 Windows 蓝牙耳机或独占声卡上同时激活 16000Hz (录音) 和 24000Hz (播音) 双通道易锁死声卡，应当归一化为唯一的全局 `SharedAudioContext` 并仅在发送前做软件降采样。
 - **`pendingQueue` 在 `await` 期间面临新消息并发插队时序漏洞**：在 session 建立后循环消费 pendingQueue 时，若使用 `for...of` 和 `await`，因为 yields 会让出事件循环，使中途到达的新 WS 消息直接通过 `session.send` 绕过队列被 Gemini 消费。需要使用 `isFlushing` 状态锁强制排空后再允许直连。
 - **停止录音时 `AudioContext.suspend()` 会误伤共享的播放器声道**：在全局单例 AudioContext 模式下，对麦克风进行 `suspend()` 释放设备会导致同属一个 context 的 AudioPlayer 也无法播放。只需断开输入节点并 `stop()` track，保持上下文活跃即可。
-- **Chromium 在 Electron 拦截模式下对高级 constraints 的校验限制**：在 `getDisplayMedia` 中使用 `displaySurface: 'monitor'` 和指定的 `frameRate` 会在 Electron 默认拦截场景下引发 `OverconstrainedError` 并报错 `Invalid capture constraints`。需要将 constraints 简化为最纯净的 `{ video: true, audio: false }`。
+- **Chromium 在 Electron 拦截模式下对 audio 约束的校验限制**：在 `getDisplayMedia` 中传入 `audio: false`（布尔值）会被 Electron 42.x 的 `setDisplayMediaRequestHandler` 激活时的 constraints 校验器直接拒绝，抛出 `Invalid capture constraints`。正确做法是完全省略 `audio` 字段，主进程 handler 仅 `callback({ video })` 不返回音频轨道，安全等价。
+- **IPC 监听器在页面重载时累积泄漏**：`preload.js` 中通过 `ipcRenderer.on` 注册的监听器没有对应清理，页面多次重载后监听器累积。应使用 `safeOn` 封装记录所有频道，并在 `window.beforeunload` 时统一调用 `removeAllListeners`。
+- **Windows IPv6 环境下 localhost 解析为 ::1 被 Origin 白名单误拒**：Origin 校验仅包含 `localhost` 和 `127.0.0.1` 时，在部分 Windows 系统 IPv6 优先配置下，本地请求的 hostname 会为 `::1`，被错误拦截导致屏幕共享失败。需在白名单中显式追加 `::1`。
+
+
