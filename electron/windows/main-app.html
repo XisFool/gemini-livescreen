@@ -95,6 +95,145 @@
     .app-layout {
       height: calc(100vh - 82px) !important; /* 38px titlebar + 44px footer = 82px */
     }
+
+    /* 更新模态框遮罩层 */
+    .update-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(229, 233, 242, 0.4); /* Clay 浅色半透明背景 */
+      backdrop-filter: blur(10px); /* 磨砂玻璃质感 */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      -webkit-app-region: no-drag;
+    }
+    .update-modal-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    
+    /* 粘土质感卡片 */
+    .update-modal-card {
+      width: 440px;
+      background: var(--surface-card, #f4f6fa);
+      border-radius: var(--rounded-lg, 16px);
+      border: 1px solid var(--hairline, rgba(0,0,0,0.08));
+      box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.08), 
+        inset 0 1px 0 #ffffff,
+        inset 0 -4px 12px rgba(0, 0, 0, 0.03);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      font-family: var(--font-body);
+      transform: scale(0.95);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .update-modal-overlay.show .update-modal-card {
+      transform: scale(1);
+    }
+
+    .update-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--hairline, rgba(0,0,0,0.08));
+      padding-bottom: 12px;
+    }
+    .update-modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink, #1a1a1a);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .update-modal-close {
+      background: transparent;
+      border: none;
+      font-size: 16px;
+      color: var(--muted, #8a8a8a);
+      cursor: pointer;
+      transition: color 0.2s;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--rounded-pill, 999px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .update-modal-close:hover {
+      background: var(--surface-strong, rgba(0,0,0,0.05));
+      color: var(--ink, #1a1a1a);
+    }
+
+    .update-modal-body {
+      font-size: 13px;
+      color: var(--ink, #2a2a2a);
+      line-height: 1.6;
+    }
+    
+    .update-notes-box {
+      background: var(--surface-soft, #f8f9fc);
+      border: 1px solid var(--hairline, rgba(0,0,0,0.05));
+      border-radius: var(--rounded-sm, 8px);
+      padding: 12px 16px;
+      margin-top: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+      font-family: inherit;
+      white-space: pre-wrap;
+      font-size: 12px;
+      color: var(--muted, #555);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.02);
+    }
+
+    .update-progress-container {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .update-progress-track {
+      height: 10px;
+      background: var(--surface-soft, #e8ebf3);
+      border-radius: var(--rounded-pill, 999px);
+      border: 1px solid var(--hairline, rgba(0,0,0,0.06));
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+      overflow: hidden;
+      position: relative;
+    }
+    .update-progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary, #0066cc), #3399ff);
+      border-radius: var(--rounded-pill, 999px);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2);
+      transition: width 0.1s linear;
+    }
+    .update-progress-text {
+      font-size: 12px;
+      color: var(--muted, #666);
+      text-align: right;
+      font-weight: 600;
+      font-family: monospace;
+    }
+
+    .update-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      border-top: 1px solid var(--hairline, rgba(0,0,0,0.08));
+      padding-top: 16px;
+    }
   </style>
 </head>
 <body>
@@ -111,7 +250,9 @@
       <div class="titlebar-status" id="title-status-container">
         <span id="title-status-text">未连接</span>
       </div>
+      <button class="titlebar-btn" id="btn-update" title="检查更新">🔄 检查更新</button>
       <button class="titlebar-btn" id="btn-settings" title="设置">⚙ 设置</button>
+
       <button class="titlebar-btn win-ctrl" id="btn-minimize" title="最小化">─</button>
       <button class="titlebar-btn win-ctrl" id="btn-maximize" title="最大化">▢</button>
       <button class="titlebar-btn win-ctrl titlebar-btn-close" id="btn-close" title="关闭">✕</button>
@@ -349,9 +490,177 @@
 
         // 初始化上报一次
         setTimeout(reportState, 1000);
+
+        // 6. 检查更新逻辑绑定
+        let updateDownloadUrl = '';
+        const updateModal = document.getElementById('update-modal');
+        
+        const switchUpdateView = (status) => {
+          document.querySelectorAll('.update-status-view').forEach(el => el.style.display = 'none');
+          document.getElementById('btn-update-now').style.display = 'none';
+          document.getElementById('btn-update-reinstall').style.display = 'none';
+          document.getElementById('btn-update-cancel-download').style.display = 'none';
+          document.getElementById('btn-update-retry').style.display = 'none';
+          document.getElementById('btn-update-ok').style.display = 'none';
+          document.getElementById('btn-update-cancel').style.display = 'none';
+
+          if (status === 'checking') {
+            document.getElementById('status-checking').style.display = 'block';
+            document.getElementById('btn-update-cancel').style.display = 'block';
+          } else if (status === 'available') {
+            document.getElementById('status-available').style.display = 'block';
+            document.getElementById('btn-update-cancel').style.display = 'block';
+            document.getElementById('btn-update-now').style.display = 'block';
+          } else if (status === 'latest') {
+            document.getElementById('status-latest').style.display = 'block';
+            document.getElementById('btn-update-reinstall').style.display = 'block';
+            document.getElementById('btn-update-ok').style.display = 'block';
+          } else if (status === 'downloading') {
+            document.getElementById('status-downloading').style.display = 'block';
+            document.getElementById('btn-update-cancel-download').style.display = 'block';
+          } else if (status === 'downloaded') {
+            document.getElementById('status-downloaded').style.display = 'block';
+          } else if (status === 'error') {
+            document.getElementById('status-error').style.display = 'block';
+            document.getElementById('btn-update-retry').style.display = 'block';
+            document.getElementById('btn-update-cancel').style.display = 'block';
+          }
+        };
+
+        const closeUpdateModal = () => {
+          const downloadingView = document.getElementById('status-downloading');
+          if (downloadingView && downloadingView.style.display === 'block') {
+            window.electronAPI.cancelDownloadUpdate();
+          }
+          updateModal.classList.remove('show');
+        };
+
+        document.getElementById('btn-update').addEventListener('click', () => {
+          updateModal.classList.add('show');
+          switchUpdateView('checking');
+          window.electronAPI.checkForUpdates();
+        });
+
+        document.getElementById('btn-close-update-modal').addEventListener('click', closeUpdateModal);
+        document.getElementById('btn-update-cancel').addEventListener('click', closeUpdateModal);
+        document.getElementById('btn-update-ok').addEventListener('click', closeUpdateModal);
+
+        document.getElementById('btn-update-now').addEventListener('click', () => {
+          if (updateDownloadUrl) {
+            switchUpdateView('downloading');
+            window.electronAPI.startDownloadUpdate(updateDownloadUrl);
+          }
+        });
+
+        document.getElementById('btn-update-reinstall').addEventListener('click', () => {
+          if (updateDownloadUrl) {
+            switchUpdateView('downloading');
+            window.electronAPI.startDownloadUpdate(updateDownloadUrl);
+          }
+        });
+
+        document.getElementById('btn-update-cancel-download').addEventListener('click', () => {
+          window.electronAPI.cancelDownloadUpdate();
+          closeUpdateModal();
+        });
+
+        document.getElementById('btn-update-retry').addEventListener('click', () => {
+          switchUpdateView('checking');
+          window.electronAPI.checkForUpdates();
+        });
+
+        window.electronAPI.onUpdateStatus((data) => {
+          if (data.status === 'checking') {
+            switchUpdateView('checking');
+          } else if (data.status === 'update-available') {
+            document.getElementById('latest-version-name').textContent = data.latestVersion;
+            document.getElementById('current-version-name').textContent = data.currentVersion;
+            document.getElementById('update-notes-content').textContent = data.notes;
+            updateDownloadUrl = data.downloadUrl;
+            switchUpdateView('available');
+          } else if (data.status === 'update-not-available') {
+            document.getElementById('latest-current-version').textContent = data.currentVersion;
+            updateDownloadUrl = data.downloadUrl;
+            switchUpdateView('latest');
+          } else if (data.status === 'downloading') {
+            const downloadingView = document.getElementById('status-downloading');
+            if (downloadingView.style.display === 'none') {
+              switchUpdateView('downloading');
+            }
+            document.getElementById('update-progress-bar').style.width = `${data.percent}%`;
+            document.getElementById('update-progress-text').textContent = `${data.percent}%`;
+          } else if (data.status === 'downloaded') {
+            switchUpdateView('downloaded');
+          } else if (data.status === 'error') {
+            document.getElementById('update-error-msg').textContent = data.message;
+            switchUpdateView('error');
+          } else if (data.status === 'cancelled') {
+            closeUpdateModal();
+          }
+        });
       }
     });
   </script>
+
+  <!-- 检查更新模态框 -->
+  <div class="update-modal-overlay" id="update-modal">
+    <div class="update-modal-card">
+      <div class="update-modal-header">
+        <span class="update-modal-title">🔄 系统更新</span>
+        <button class="update-modal-close" id="btn-close-update-modal">✕</button>
+      </div>
+      <div class="update-modal-body" id="update-modal-body">
+        <!-- 正在检查状态 -->
+        <div id="status-checking" class="update-status-view">
+          <p style="text-align: center; padding: 20px 0; color: var(--muted);">🔍 正在检查最新版本，请稍候...</p>
+        </div>
+        
+        <!-- 发现新版本状态 -->
+        <div id="status-available" class="update-status-view" style="display: none;">
+          <p style="font-weight: 600; margin-bottom: 8px;">发现新版本 <span id="latest-version-name" style="color: var(--primary); font-weight: 700;">v1.0.1</span> (当前版本: <span id="current-version-name">v1.0.0</span>)</p>
+          <div>更新内容：</div>
+          <div class="update-notes-box" id="update-notes-content"></div>
+        </div>
+        
+        <!-- 已是最新版本状态 -->
+        <div id="status-latest" class="update-status-view" style="display: none;">
+          <p style="text-align: center; padding: 10px 0; font-size: 14px;">🎉 您当前运行的已经是最新版本 (<span id="latest-current-version">v1.0.0</span>)！</p>
+        </div>
+        
+        <!-- 正在下载状态 -->
+        <div id="status-downloading" class="update-status-view" style="display: none;">
+          <p style="margin-bottom: 6px;">正在下载最新安装包，请勿关闭程序...</p>
+          <div class="update-progress-container">
+            <div class="update-progress-track">
+              <div class="update-progress-bar" id="update-progress-bar"></div>
+            </div>
+            <div class="update-progress-text" id="update-progress-text">0%</div>
+          </div>
+        </div>
+
+        <!-- 下载完成状态 -->
+        <div id="status-downloaded" class="update-status-view" style="display: none;">
+          <p style="text-align: center; padding: 10px 0; font-size: 14px; color: var(--primary); font-weight: 600;">⚡ 下载完成！即将启动安装程序以覆盖更新，请根据安装引导完成替换。</p>
+        </div>
+
+        <!-- 错误状态 -->
+        <div id="status-error" class="update-status-view" style="display: none;">
+          <p style="color: var(--error); font-weight: 600;">❌ 检查更新或下载时发生错误：</p>
+          <p id="update-error-msg" style="background: rgba(255, 99, 102, 0.05); border: 1px solid rgba(255, 99, 102, 0.2); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; margin-top: 8px;"></p>
+        </div>
+      </div>
+      
+      <div class="update-modal-footer" id="update-modal-footer">
+        <button class="btn btn-secondary" id="btn-update-cancel">取消</button>
+        <button class="btn btn-primary" id="btn-update-now" style="display: none;">立即更新</button>
+        <button class="btn btn-secondary" id="btn-update-reinstall" style="display: none;">重新下载安装</button>
+        <button class="btn btn-secondary" id="btn-update-cancel-download" style="display: none;">取消下载</button>
+        <button class="btn btn-primary" id="btn-update-retry" style="display: none;">重试</button>
+        <button class="btn btn-primary" id="btn-update-ok" style="display: none;">确定</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Web API and client modules -->
   <script src="../../public/screen-capture.js"></script>

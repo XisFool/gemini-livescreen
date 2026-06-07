@@ -1,8 +1,8 @@
 # LiveScreen 进度
 
 ## 现在在做
-- 阶段：全面 Code Review + Subagent 静态测试整改（已完成，新增体验交互调优与全自动发布）
-- 停在：完成了多维度静态分析整改、迷你窗关闭隐藏、Gemini 语音打断，并成功配置与部署了基于 GitHub Actions 的 CI/CD 自动打包发布构建流程。
+- 阶段：完成自适应代理更新系统开发与漏洞加固收尾（已完成）
+- 停在：设计并实现了自适应代理一键检查更新与覆盖升级系统，包括 302 重定向下载器、Windows 文件锁与并发竞态加固，完美保留本地安全加密配置不丢失。
 - 下一步：开始进行 Phase 2 的窗口与屏幕共享源视觉选择组件，以及屏幕涂鸦工具的设计
 
 ## 近期待办（3条以内）
@@ -43,6 +43,7 @@
 | 迷你窗关闭优化 | 点击迷你窗关闭按钮仅 hide 隐藏不退出，主窗口关闭才真正退出 | 🟢 已完成 | main.js 与 mini.html 实现 |
 | 实时语音打断 | 引入服务端 interrupted 信号并通知前端触发播放器瞬间静音和气泡置灰 | 🟢 已完成 | server.js 与 app.js 实现 |
 | 自动化发布部署 | 配置 workflows/release.yml，推送标签触发云端 Actions 打包发布 | 🟢 已完成 | package.json 与 release.yml 实现 |
+| 自适应代理检查更新系统 | 主界面无边框标题栏新增 🔄 检查更新 按钮，支持代理自适应、302重定向及防爆锁静默替换 | 🟢 已完成 | main.js 与 main-app.html 实现 |
 
 ---
 
@@ -57,6 +58,5 @@
 - **Chromium 在 Electron 拦截模式下对 audio 约束的校验限制**：在 `getDisplayMedia` 中传入 `audio: false`（布尔值）会被 Electron 42.x 的 `setDisplayMediaRequestHandler` 激活时的 constraints 校验器直接拒绝，抛出 `Invalid capture constraints`。正确做法是完全省略 `audio` 字段，主进程 handler 仅 `callback({ video })` 不返回音频轨道，安全等价。
 - **IPC 监听器在页面重载时累积泄漏**：`preload.js` 中通过 `ipcRenderer.on` 注册的监听器没有对应清理，页面多次重载后监听器累积。应使用 `safeOn` 封装记录所有频道，并在 `window.beforeunload` 时统一调用 `removeAllListeners`。
 - **Windows IPv6 环境下 localhost 解析为 ::1 被 Origin 白名单误拒**：Origin 校验仅包含 `localhost` 和 `127.0.0.1` 时，在部分 Windows 系统 IPv6 优先配置下，本地请求的 hostname 会为 `::1`，被错误拦截导致屏幕共享失败。需在白名单中显式追加 `::1`。
-- **Gemini 语音打断必须依赖服务端 `interrupted` 事件状态转发**：在长开麦模式下，当 AI 播音中途用户开始说话，客户端无法自行判断何时打断。必须由后端 `server.js` 监听 Gemini 回包中的 `serverContent.interrupted === true` 信号，并用自定义 WS 包实时通知渲染进程 `audioPlayer.stop()` 瞬间停止播放，否则会出现用户讲话时 AI 仍旧滔滔不绝的问题。
-
-
+- **Gemini 语音打断必须依赖服务端 `interrupted` 事件状态转发**：在长开麦模式下，当 AI 播音中途用户开始说话，客户端无法自行判断何时打断。必须由后端 `server.js` 监听 Gemini 回包中的 `serverContent.interrupted === true` 信号，并用自定义 WS 包实时通知渲染进程 `audioPlayer.stop()` 瞬间停止播放，解决用户讲话时 AI 仍旧滔滔不绝的问题。
+- **Windows 下未释放写入流句柄导致 unlink 因文件锁定报错**：在取消下载更新包时，如果未显式调用 `fileStream.destroy()`，Windows 会独占锁定正在写入的 exe 临时文件，使 `fs.unlink()` 因“拒绝访问”静默失败，影响下一次下载。应引入全局自增 ID 隔离前后多次重试请求，并在取消时手动销毁写入流并延迟 100ms 再进行 unlink 物理删除。

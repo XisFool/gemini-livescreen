@@ -1,6 +1,6 @@
 {
   "name": "gemini-livescreen",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "基于 Gemini Live API 的 Electron 原生桌面级实时屏幕与语音辅导助手",
   "main": "electron/main.js",
   "scripts": {

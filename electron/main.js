@@ -4,6 +4,11 @@ const https = require('https');
 const tls = require('tls');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const store = require('./store');
+const fs = require('fs');
+const urlLib = require('url');
+const http = require('http');
+const { spawn } = require('child_process');
+
 
 // 拦截 TLS 建立，防止 HttpsProxyAgent 在握手失败时由于 listeners 被清理导致未捕获的 Socket 错误崩溃
 const originalTlsConnect = tls.connect;
@@ -42,6 +47,12 @@ let miniWindow = null;
 let settingsWindow = null;
 let tray = null;
 let isQuitting = false;
+let activeDownloadId = 0;
+let currentDownloadRequest = null;
+let currentFileStream = null;
+const updateTempPath = path.join(app.getPath('temp'), 'LiveScreen-Setup.exe');
+
+
 
 function showNotification(title, body) {
   if (Notification.isSupported()) {
@@ -129,8 +140,214 @@ function createTray() {
   });
 }
 
+// 辅助函数：版本号对比 (semantic version check)
+function isNewVersion(current, latest) {
+  const clean = (v) => v.replace(/^v/i, '').replace(/-.*/, '').split('.').map(Number);
+  const c = clean(current);
+  const l = clean(latest);
+  for (let i = 0; i < Math.max(c.length, l.length); i++) {
+    const cv = c[i] || 0;
+    const lv = l[i] || 0;
+    if (lv > cv) return true;
+    if (cv > lv) return false;
+  }
+  return false;
+}
+
+// 辅助函数：拉取 GitHub API 最新 release
+function fetchLatestRelease(proxyUrl, apiUrl = 'https://api.github.com/repos/XisFool/gemini-livescreen/releases/latest') {
+  return new Promise((resolve, reject) => {
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(apiUrl);
+    } catch (e) {
+      return reject(new Error(`无效的 API 地址: ${apiUrl}`));
+    }
+    
+    const options = {
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.pathname + parsedUrl.search,
+      port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+      method: 'GET',
+      headers: {
+        'User-Agent': 'gemini-livescreen-updater',
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      timeout: 10000 // 10s 超时
+    };
+    if (proxyUrl) {
+      try {
+        options.agent = new HttpsProxyAgent(proxyUrl);
+      } catch (e) {
+        console.warn('[Update API Proxy] Invalid proxy config, falling back to direct connection:', e.message);
+      }
+    }
+    
+    const protocol = parsedUrl.protocol === 'https:' ? https : http;
+    const req = protocol.get(options, (res) => {
+      if ([301, 302, 307, 308].includes(res.statusCode)) {
+        const redirectUrl = res.headers.location;
+        if (redirectUrl) {
+          console.log(`[Update API] Redirecting to ${redirectUrl}`);
+          resolve(fetchLatestRelease(proxyUrl, redirectUrl));
+          return;
+        }
+      }
+      
+      if (res.statusCode !== 200) {
+        reject(new Error(`获取 Release 失败: HTTP 状态码 ${res.statusCode}`));
+        return;
+      }
+      
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(new Error('解析 Release JSON 失败'));
+        }
+      });
+    });
+    
+    req.on('error', (err) => {
+      reject(err);
+    });
+    
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('请求 GitHub API 超时'));
+    });
+  });
+}
+
+
+function downloadFile(fileUrl, destPath, onProgress, onComplete, onError, proxyUrl, downloadId) {
+  if (downloadId !== activeDownloadId) return;
+
+  let options = {
+    headers: {
+      'User-Agent': 'gemini-livescreen-updater'
+    },
+    timeout: 30000
+  };
+  if (proxyUrl) {
+    try {
+      options.agent = new HttpsProxyAgent(proxyUrl);
+    } catch (e) {
+      console.warn('[Update Download Proxy] Invalid proxy config, falling back to direct:', e.message);
+    }
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(fileUrl);
+  } catch (e) {
+    return onError(new Error(`无效的下载地址: ${fileUrl}`));
+  }
+
+  if (parsedUrl.protocol !== 'https:') {
+    return onError(new Error('安全限制：仅允许通过 HTTPS 协议下载更新包'));
+  }
+
+  const protocol = https;
+  console.log(`[Update Download ID:${downloadId}] Requesting: ${fileUrl}`);
+
+  currentDownloadRequest = protocol.get(fileUrl, options, (res) => {
+    if (downloadId !== activeDownloadId) {
+      res.resume();
+      return;
+    }
+
+    if ([301, 302, 307, 308].includes(res.statusCode)) {
+      const redirectUrl = res.headers.location;
+      res.resume();
+      if (redirectUrl) {
+        console.log(`[Update Download ID:${downloadId}] Redirecting to: ${redirectUrl}`);
+        downloadFile(redirectUrl, destPath, onProgress, onComplete, onError, proxyUrl, downloadId);
+      } else {
+        onError(new Error('重定向地址为空'));
+      }
+      return;
+    }
+
+    if (res.statusCode !== 200) {
+      res.resume();
+      onError(new Error(`下载失败: HTTP ${res.statusCode}`));
+      return;
+    }
+
+    const totalBytes = parseInt(res.headers['content-length'], 10) || 0;
+    let receivedBytes = 0;
+    
+    try {
+      const dir = path.dirname(destPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    } catch (e) {
+      onError(e);
+      return;
+    }
+
+    const fileStream = fs.createWriteStream(destPath);
+    currentFileStream = fileStream;
+
+    fileStream.on('error', (err) => {
+      fileStream.destroy();
+      if (currentFileStream === fileStream) currentFileStream = null;
+      fs.unlink(destPath, () => {});
+      onError(new Error(`文件写入失败: ${err.message}`));
+    });
+
+    res.on('data', (chunk) => {
+      if (downloadId !== activeDownloadId) {
+        fileStream.destroy();
+        if (currentFileStream === fileStream) currentFileStream = null;
+        res.destroy();
+        return;
+      }
+      fileStream.write(chunk);
+      receivedBytes += chunk.length;
+      if (totalBytes > 0) {
+        const percent = parseFloat(((receivedBytes / totalBytes) * 100).toFixed(1));
+        onProgress(percent);
+      }
+    });
+
+    res.on('end', () => {
+      fileStream.end();
+      if (currentFileStream === fileStream) currentFileStream = null;
+      if (downloadId === activeDownloadId) {
+        onComplete();
+      }
+    });
+
+    res.on('error', (err) => {
+      fileStream.destroy();
+      if (currentFileStream === fileStream) currentFileStream = null;
+      fs.unlink(destPath, () => {});
+      onError(err);
+    });
+  });
+
+  currentDownloadRequest.on('error', (err) => {
+    if (downloadId === activeDownloadId) {
+      onError(err);
+    }
+  });
+  
+  currentDownloadRequest.on('timeout', () => {
+    currentDownloadRequest.destroy();
+    if (downloadId === activeDownloadId) {
+      onError(new Error('下载连接超时'));
+    }
+  });
+}
+
 // 辅助函数：解析系统代理配置
 async function resolveSystemProxyHelper() {
+
   try {
     const proxyInfo = await session.defaultSession.resolveProxy('https://generativelanguage.googleapis.com');
     console.log('[Proxy Resolve] Resolved proxy for Gemini API:', proxyInfo);
@@ -695,6 +912,135 @@ function registerIpcHandlers() {
 
     // 如果所有尝试都失败了，返回直连错误信息
     return { success: false, message: `直连失败且未检测到可用代理: ${translateNetworkError(directRes.message)}` };
+  });
+
+  // 1. 检查更新
+  ipcMain.on('check-for-updates', async (event) => {
+    event.sender.send('update-status', { status: 'checking' });
+    try {
+      const proxyUrl = process.env.HTTPS_PROXY || null;
+      console.log(`[Update] Checking for updates... Proxy: ${proxyUrl || 'DIRECT'}`);
+      
+      const release = await fetchLatestRelease(proxyUrl);
+      const currentVersion = app.getVersion();
+      const latestVersion = release.tag_name;
+      
+      // 提取 exe 资产
+      const assets = release.assets || [];
+      const exeAsset = assets.find(a => a.name.endsWith('.exe') && a.name.toLowerCase().includes('setup')) || 
+                       assets.find(a => a.name.endsWith('.exe'));
+                       
+      if (!exeAsset) {
+        throw new Error('Release 资产中未包含 Windows 的 exe 安装包！');
+      }
+
+      const hasNew = isNewVersion(currentVersion, latestVersion);
+      if (hasNew) {
+        event.sender.send('update-status', {
+          status: 'update-available',
+          currentVersion,
+          latestVersion,
+          notes: release.body || '',
+          downloadUrl: exeAsset.browser_download_url
+        });
+      } else {
+        event.sender.send('update-status', {
+          status: 'update-not-available',
+          currentVersion,
+          latestVersion,
+          notes: release.body || '',
+          downloadUrl: exeAsset.browser_download_url
+        });
+      }
+    } catch (err) {
+      console.error('[Update Check Error]', err);
+      event.sender.send('update-status', {
+        status: 'error',
+        message: `检查更新失败: ${err.message}`
+      });
+    }
+  });
+
+  // 2. 开始下载更新
+  ipcMain.on('start-download-update', (event, downloadUrl) => {
+    const thisDownloadId = ++activeDownloadId;
+    if (currentDownloadRequest) {
+      currentDownloadRequest.destroy();
+      currentDownloadRequest = null;
+    }
+    if (currentFileStream) {
+      currentFileStream.destroy();
+      currentFileStream = null;
+    }
+
+    const proxyUrl = process.env.HTTPS_PROXY || null;
+    console.log(`[Update ID:${thisDownloadId}] Starting download from ${downloadUrl} via ${proxyUrl || 'DIRECT'}`);
+    
+    event.sender.send('update-status', { status: 'downloading', percent: 0 });
+
+    const onProgress = (percent) => {
+      if (thisDownloadId !== activeDownloadId) return;
+      event.sender.send('update-status', { status: 'downloading', percent });
+    };
+
+    const onComplete = () => {
+      if (thisDownloadId !== activeDownloadId) return;
+      console.log(`[Update ID:${thisDownloadId}] Downloaded to ${updateTempPath}. Preparing installation...`);
+      event.sender.send('update-status', { status: 'downloaded' });
+      
+      setTimeout(() => {
+        if (thisDownloadId !== activeDownloadId) return;
+        try {
+          const child = spawn(updateTempPath, [], {
+            detached: true,
+            stdio: 'ignore'
+          });
+          child.unref();
+          app.quit();
+        } catch (e) {
+          console.error('[Update Run Setup Error]', e);
+          event.sender.send('update-status', {
+            status: 'error',
+            message: `启动安装包失败: ${e.message}`
+          });
+        }
+      }, 1500);
+    };
+
+    const onError = (err) => {
+      if (thisDownloadId !== activeDownloadId) return;
+      console.error('[Update Download Error]', err);
+      event.sender.send('update-status', {
+        status: 'error',
+        message: `下载失败: ${err.message}`
+      });
+    };
+
+    fs.unlink(updateTempPath, () => {
+      downloadFile(downloadUrl, updateTempPath, onProgress, onComplete, onError, proxyUrl, thisDownloadId);
+    });
+  });
+
+  // 3. 取消下载更新
+  ipcMain.on('cancel-download-update', (event) => {
+    console.log('[Update] Cancelling update download...');
+    activeDownloadId = 0;
+    if (currentDownloadRequest) {
+      currentDownloadRequest.destroy();
+      currentDownloadRequest = null;
+    }
+    if (currentFileStream) {
+      currentFileStream.destroy();
+      currentFileStream = null;
+    }
+    setTimeout(() => {
+      fs.unlink(updateTempPath, (err) => {
+        if (err && err.code !== 'ENOENT') {
+          console.warn('[Update Cancel] Unlink failed:', err.message);
+        }
+      });
+    }, 100);
+    event.sender.send('update-status', { status: 'cancelled' });
   });
 }
 

@@ -52,6 +52,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 状态广播同步
   updateState:     (state) => ipcRenderer.send('state-update', state),
   onStateChange:   (cb) => safeOn('state-change', (_, state) => cb(state)),
+
+  // 检查更新与下载更新相关
+  checkForUpdates:     () => ipcRenderer.send('check-for-updates'),
+  startDownloadUpdate: (url) => ipcRenderer.send('start-download-update', url),
+  cancelDownloadUpdate: () => ipcRenderer.send('cancel-download-update'),
+  onUpdateStatus:      (cb) => safeOn('update-status', (_, data) => cb(data)),
 });
 
 // 页面销毁时统一清理所有 IPC 监听器，防止重载时监听器累积

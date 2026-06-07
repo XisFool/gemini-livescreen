@@ -94,7 +94,9 @@
 24. **迷你窗关闭逻辑优化**：优化了 `window-close` 处理逻辑，当点击迷你窗右上角关闭按钮时仅调用 `miniWindow.hide()` 将其隐藏在后台（保持软件托盘和全局热键正常活动），只有在主界面点击关闭才会真正退出程序。同步更新迷你窗关闭按钮的 `title` 属性为“关闭悬浮窗”。
 25. **Gemini 语音实时打断 (Barge-in)**：打通了 Gemini 官方 Live API 的打断事件传递链路。后端 `server.js` 新增对 `serverContent.interrupted` 信号的捕获，并实时转发给前端；前端 `app.js` 新增 `interrupted` 事件响应，在收到信号后立即执行 `audioPlayer.stop()` 清除队列静音，并重置流式气泡状态，从根本上解决了用户讲话时无法打断 AI 的体验问题。
 26. **GitHub Actions 自动化发布部署 (Release)**：在 `package.json` 的 `build` 段中配置了 GitHub `publish` 目的地，并创建了 `.github/workflows/release.yml` 配置文件。实现了当本地向 GitHub 推送版本标签（如 `v1.0.0`）时，云端 Actions 自动编译生成 exe 安装包并自动发布到 GitHub Releases 页面，消除了繁琐的本地手动打包与手动上传流程。
+27. **自适应代理一键更新系统 (Check for Updates)**：主界面新增 🔄 检查更新 按钮，点击拉起 Clay 风格的系统更新提示模态框。后端主进程通过原生 https 模块与 HttpsProxyAgent 代理，在请求 GitHub API 并跟踪 302 重定向下载 exe 文件时，能够完美自适应继承当前配置的代理，以保障高可靠性。下载完成后在主进程内通过独立 spawn 运行新 exe 安装包，随后安全退出应用。NSIS 安装包启动后会自动关闭旧应用并覆盖替换，且完全保留保存在 `settings.json` 中的 API Key 和代理等数据。
 
 ### 当前项目状态
-* **状态**：已完成全面 Code Review 与 Subagent 静态测试整改。优化了迷你悬浮窗关闭行为（改为隐藏），并彻底打通了 Gemini 实时语音打断（Barge-in）的双端事件通信，大幅提升了长开麦交互下的插话流畅度。屏幕共享启动失败问题已完全自愈修复，并且成功配置及推送了 GitHub Actions 自动化 CI/CD 打包发布流程，项目当前处于完全可用、可一键发布部署的稳定状态。
+* **状态**：已完成自适应代理一键更新系统的全新开发。主界面无边框标题栏已新增“🔄 检查更新”按钮，打通了 Preload 安全桥接口及 Main 主进程后台网络下载、重定向跟踪、静微升级逻辑，并完美融入了磨砂亚克力 Clay 风格的模态进度条面板。项目当前处于功能高度完整、可直接进行打包发布的稳定状态。
+
 
