@@ -250,12 +250,12 @@
       <div class="titlebar-status" id="title-status-container">
         <span id="title-status-text">未连接</span>
       </div>
-      <button class="titlebar-btn" id="btn-update" title="检查更新">🔄 检查更新</button>
-      <button class="titlebar-btn" id="btn-settings" title="设置">⚙ 设置</button>
+      <button class="titlebar-btn" id="btn-update" title="检查更新" aria-label="检查更新">🔄 检查更新</button>
+      <button class="titlebar-btn" id="btn-settings" title="设置" aria-label="打开设置">⚙ 设置</button>
 
-      <button class="titlebar-btn win-ctrl" id="btn-minimize" title="最小化">─</button>
-      <button class="titlebar-btn win-ctrl" id="btn-maximize" title="最大化">▢</button>
-      <button class="titlebar-btn win-ctrl titlebar-btn-close" id="btn-close" title="关闭">✕</button>
+      <button class="titlebar-btn win-ctrl" id="btn-minimize" title="最小化" aria-label="最小化">─</button>
+      <button class="titlebar-btn win-ctrl" id="btn-maximize" title="最大化" aria-label="最大化">▢</button>
+      <button class="titlebar-btn win-ctrl titlebar-btn-close" id="btn-close" title="关闭" aria-label="关闭">✕</button>
     </div>
   </div>
 
@@ -290,15 +290,15 @@
       </div>
       
       <div class="screen-controls">
-        <button class="btn btn-primary" id="btn-start-share">
+        <button class="btn btn-primary" id="btn-start-share" aria-label="开始共享屏幕">
           <span>📹</span> 开始共享屏幕
         </button>
-        <button class="btn btn-secondary" id="btn-stop-share" disabled>
+        <button class="btn btn-secondary" id="btn-stop-share" aria-label="停止共享屏幕" disabled>
           <span>⏹</span> 停止共享
         </button>
         <div class="volume-control-wrapper" style="display: flex; align-items: center; gap: 8px; margin-left: auto; background: var(--surface-card); padding: 4px 12px; border-radius: var(--rounded-pill); border: 1px solid var(--hairline);">
-          <span id="btn-volume-mute" style="cursor: pointer; user-select: none; font-size: 14px; display: flex; align-items: center;" title="静音/取消静音">🔊</span>
-          <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1.0" style="width: 80px; accent-color: var(--primary); cursor: pointer;" title="调节音量">
+          <button type="button" id="btn-volume-mute" style="cursor: pointer; user-select: none; font-size: 14px; display: flex; align-items: center; border: none; background: transparent; padding: 0;" title="静音/取消静音" aria-label="静音或取消静音">🔊</button>
+          <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1.0" style="width: 80px; accent-color: var(--primary); cursor: pointer;" title="调节音量" aria-label="调节音量">
           <span id="volume-value" style="font-size: 11px; min-width: 30px; text-align: right; color: var(--muted); font-family: monospace;">100</span>
         </div>
       </div>
@@ -308,7 +308,7 @@
     <div class="chat-panel">
       <div class="chat-header">
         <div class="chat-title">💬 实时辅导</div>
-        <button class="btn btn-secondary" style="height: 32px; padding: 0 12px; font-size: 12px;" id="btn-clear-chat">
+        <button class="btn btn-secondary" style="height: 32px; padding: 0 12px; font-size: 12px;" id="btn-clear-chat" aria-label="清空对话">
           清空对话
         </button>
       </div>
@@ -324,7 +324,7 @@
       <div class="input-area">
         <div class="input-row">
           <!-- Voice Button (Push to talk / Tap to toggle) -->
-          <button class="btn-voice" id="btn-voice" title="语音通话 (按住说话 / 点击长开)">
+          <button class="btn-voice" id="btn-voice" title="语音通话 (按住说话 / 点击长开)" aria-label="语音通话，按住说话或点击长开">
             🎙️
           </button>
           
@@ -332,7 +332,7 @@
             <input type="text" class="input-text" id="input-message" placeholder="输入问题或长按麦克风说话..." disabled>
           </div>
           
-          <button class="btn-send" id="btn-send" disabled>
+          <button class="btn-send" id="btn-send" aria-label="发送消息" disabled>
             ➔
           </button>
         </div>

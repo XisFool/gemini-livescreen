@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, desktopCapturer, Tray, Menu, globalShortcut, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, session, desktopCapturer, Tray, Menu, globalShortcut, Notification, shell, clipboard } = require('electron');
 const path = require('path');
 const https = require('https');
 const tls = require('tls');
@@ -51,6 +51,8 @@ let activeDownloadId = 0;
 let currentDownloadRequest = null;
 let currentFileStream = null;
 const updateTempPath = path.join(app.getPath('temp'), 'LiveScreen-Setup.exe');
+const API_KEY_PAGE_URL = 'https://aistudio.google.com/apikey';
+const LIVE_MODEL_NAME = 'gemini-3.1-flash-live-preview';
 
 
 
@@ -376,11 +378,31 @@ async function resolveSystemProxyHelper() {
   }
 }
 
+function isLikelyGeminiApiKey(value) {
+  if (!value || typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  // Google API keys normally begin with AIza and contain URL-safe token chars.
+  return /^AIza[0-9A-Za-z_-]{20,}$/.test(trimmed);
+}
+
+function translateApiTestError(message, statusCode) {
+  if (statusCode === 400 || statusCode === 401) {
+    return 'API Key 无效或已被拒绝，请确认复制的是 Google AI Studio 中创建的 Gemini API Key。';
+  }
+  if (statusCode === 403) {
+    return `API Key 可被识别，但当前项目可能没有访问 ${LIVE_MODEL_NAME} 的权限，或受到地区、配额、Billing 限制。`;
+  }
+  if (statusCode === 404) {
+    return `无法找到 ${LIVE_MODEL_NAME}。请确认该 Gemini Live 预览模型已对当前账号开放，或稍后重试。`;
+  }
+  return message || `HTTP 错误码: ${statusCode}`;
+}
+
 // 辅助函数：执行网络测试探针
 function performHttpTest(apiKey, proxyUrl) {
   return new Promise((resolve) => {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${LIVE_MODEL_NAME}?key=${encodeURIComponent(apiKey)}`;
       const options = {
         timeout: 8000 // 8s 超时
       };
@@ -405,10 +427,10 @@ function performHttpTest(apiKey, proxyUrl) {
               resolve({ 
                 success: false, 
                 errorType: 'API_ERROR',
-                message: parsed.error?.message || `HTTP 错误码: ${res.statusCode}` 
+                message: translateApiTestError(parsed.error?.message, res.statusCode)
               });
             } catch (e) {
-              resolve({ success: false, errorType: 'API_ERROR', message: `HTTP 错误码: ${res.statusCode}` });
+              resolve({ success: false, errorType: 'API_ERROR', message: translateApiTestError('', res.statusCode) });
             }
           }
         });
@@ -801,6 +823,22 @@ function registerIpcHandlers() {
 
   ipcMain.handle('resolve-system-proxy', async () => {
     return resolveSystemProxyHelper();
+  });
+
+  ipcMain.handle('open-api-key-page', async () => {
+    await shell.openExternal(API_KEY_PAGE_URL);
+    return { success: true };
+  });
+
+  ipcMain.handle('read-clipboard-apikey', () => {
+    const text = clipboard.readText().trim();
+    if (!text) {
+      return { success: false, message: '剪贴板为空，请先复制 Gemini API Key。' };
+    }
+    if (!isLikelyGeminiApiKey(text)) {
+      return { success: false, message: '剪贴板内容不像 Gemini API Key，请确认复制的是以 AIza 开头的密钥。' };
+    }
+    return { success: true, apiKey: text };
   });
 
   ipcMain.handle('save-settings', (_, data) => {

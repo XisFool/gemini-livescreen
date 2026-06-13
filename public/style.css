@@ -413,6 +413,16 @@ body {
   box-shadow: 0 0 0 2px rgba(10, 10, 10, 0.05);
 }
 
+.input-text:focus-visible,
+.btn:focus-visible,
+.btn-voice:focus-visible,
+.btn-send:focus-visible,
+.titlebar-btn:focus-visible,
+#btn-volume-mute:focus-visible {
+  outline: 2px solid rgba(10, 10, 10, 0.25);
+  outline-offset: 2px;
+}
+
 .input-hint {
   font-size: 12px;
   color: var(--muted);

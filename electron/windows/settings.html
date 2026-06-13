@@ -84,6 +84,35 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+
+    .form-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .link-button {
+      border: none;
+      background: transparent;
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .link-button:focus-visible,
+    .titlebar-close:focus-visible,
+    #btn-toggle-apikey:focus-visible,
+    .form-input:focus-visible,
+    .form-textarea:focus-visible,
+    .btn:focus-visible {
+      outline: 2px solid rgba(10, 10, 10, 0.2);
+      outline-offset: 2px;
+    }
     
     .form-input, .form-textarea {
       font-family: inherit;
@@ -111,6 +140,95 @@
       font-size: 11px;
       color: var(--muted);
       line-height: 1.4;
+    }
+
+    .api-key-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .api-guide {
+      display: none;
+      border: 1px solid var(--hairline);
+      border-radius: var(--rounded-sm);
+      background: var(--surface-card);
+      padding: 12px;
+      box-shadow: inset 0 1px 0 #ffffff;
+    }
+
+    .api-guide.expanded {
+      display: block;
+    }
+
+    .api-guide-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .api-guide-url {
+      margin-bottom: 8px;
+      padding: 8px 10px;
+      border-radius: var(--rounded-sm);
+      background: var(--surface-soft);
+      border: 1px solid var(--hairline);
+      color: var(--body);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .api-guide-url code {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .api-guide-steps {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--body);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .api-guide-note {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .notice {
+      display: none;
+      margin: 0 24px 12px;
+      padding: 10px 12px;
+      border-radius: var(--rounded-sm);
+      border: 1px solid var(--hairline);
+      background: var(--surface-card);
+      color: var(--body);
+      font-size: 12px;
+      line-height: 1.5;
+      -webkit-app-region: no-drag;
+    }
+
+    .notice.show {
+      display: block;
+    }
+
+    .notice.success {
+      border-color: rgba(44, 160, 90, 0.3);
+      background: rgba(44, 160, 90, 0.08);
+      color: #166534;
+    }
+
+    .notice.error {
+      border-color: rgba(255, 99, 102, 0.35);
+      background: rgba(255, 99, 102, 0.08);
+      color: var(--error);
+    }
+
+    .notice.info {
+      border-color: rgba(10, 10, 10, 0.12);
     }
     
     .footer {
@@ -153,16 +271,34 @@
   <!-- 自定义无边框标题栏 -->
   <div class="titlebar">
     <div class="titlebar-title">⚙️ LiveScreen 设置</div>
-    <button class="titlebar-close" id="btn-close">✕</button>
+    <button class="titlebar-close" id="btn-close" aria-label="关闭设置">✕</button>
   </div>
 
   <!-- 内容区域 -->
   <div class="content">
     <div class="form-group">
-      <label class="form-label" for="api-key">Gemini API Key</label>
+      <div class="form-label-row">
+        <label class="form-label" for="api-key">Gemini API Key</label>
+        <button type="button" class="link-button" id="btn-toggle-guide" aria-expanded="false">如何获取？</button>
+      </div>
       <div style="position: relative; display: flex; align-items: center;">
-        <input type="password" class="form-input" id="api-key" placeholder="请输入你的 Gemini API Key" style="flex: 1; padding-right: 40px;">
-        <span id="btn-toggle-apikey" style="position: absolute; right: 12px; cursor: pointer; user-select: none; font-size: 16px;" title="显示/隐藏 API Key">👁️</span>
+        <input type="password" class="form-input" id="api-key" placeholder="请输入你的 Gemini API Key" style="flex: 1; padding-right: 40px;" autocomplete="off">
+        <button type="button" id="btn-toggle-apikey" aria-label="显示或隐藏 API Key" style="position: absolute; right: 8px; cursor: pointer; user-select: none; font-size: 16px; border: none; background: transparent;" title="显示/隐藏 API Key">👁️</button>
+      </div>
+      <div class="api-key-actions">
+        <button class="btn btn-secondary" id="btn-open-apikey-page" style="height: 32px; padding: 0 12px; font-size: 12px;" aria-label="打开 Google AI Studio API Key 页面">打开 Google AI Studio</button>
+        <button class="btn btn-secondary" id="btn-paste-apikey" style="height: 32px; padding: 0 12px; font-size: 12px;" aria-label="从剪贴板粘贴 Gemini API Key">从剪贴板粘贴</button>
+      </div>
+      <div class="api-guide" id="api-key-guide">
+        <div class="api-guide-title">获取 Gemini API Key 的步骤</div>
+        <div class="api-guide-url">官网入口：<code>https://aistudio.google.com/apikey</code></div>
+        <ol class="api-guide-steps">
+          <li>点击“打开 Google AI Studio”，使用 Google 账号登录。</li>
+          <li>进入 API Keys 页面后点击“Create API key”。</li>
+          <li>复制生成的密钥，回到此处粘贴到输入框。</li>
+          <li>点击“测试连接”，确认 Key、代理和 Gemini Live 模型可用后保存。</li>
+        </ol>
+        <div class="api-guide-note">如果你在中国大陆网络环境下使用，建议先开启系统代理；代理输入框留空时 LiveScreen 会优先尝试系统代理或直连。</div>
       </div>
       <span class="form-hint">使用操作系统级安全存储（safeStorage）加密保存。若无需修改，请保留掩码。</span>
     </div>
@@ -170,8 +306,8 @@
     <div class="form-group">
       <label class="form-label" for="proxy-url">HTTP / HTTPS 代理地址</label>
       <div style="display: flex; gap: 8px;">
-        <input type="text" class="form-input" id="proxy-url" placeholder="例如 http://127.0.0.1:7890" style="flex: 1;">
-        <button class="btn btn-secondary" id="btn-detect-proxy" style="white-space: nowrap; height: 38px; padding: 0 12px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: var(--rounded-sm); border: 1px solid var(--hairline); background: var(--surface-soft);" title="自动检测当前系统代理">⚡ 自动检测</button>
+        <input type="text" class="form-input" id="proxy-url" placeholder="例如 http://127.0.0.1:7890" style="flex: 1;" autocomplete="off">
+        <button class="btn btn-secondary" id="btn-detect-proxy" style="white-space: nowrap; height: 38px; padding: 0 12px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: var(--rounded-sm); border: 1px solid var(--hairline); background: var(--surface-soft);" title="自动检测当前系统代理" aria-label="自动检测当前系统代理">⚡ 自动检测</button>
       </div>
       <span class="form-hint">留空表示使用系统默认代理或直连。如果在中国大陆测试，请在此配置代理以连接 Google 接口。<br>💡 提示：系统"自动检测"仅能获取代理主机和端口，<strong>不包含您的账号和密码</strong>。如果您的代理需要认证，请手动修改为：<code>http://用户名:密码@IP:端口</code> 的格式。此外，即使端口是 443，如果是普通的 HTTP 代理，也请保持 <code>http://</code> 前缀而不要写成 <code>https://</code>。</span>
     </div>
@@ -195,11 +331,13 @@
     </div>
   </div>
 
+  <div class="notice info" id="inline-notice" role="status" aria-live="polite"></div>
+
   <!-- 底部操作按钮 -->
   <div class="footer">
-    <button class="btn btn-secondary" style="height: 36px; font-size: 13px; margin-right: auto;" id="btn-test">🔌 测试连接</button>
-    <button class="btn btn-secondary" style="height: 36px; font-size: 13px;" id="btn-cancel">取消</button>
-    <button class="btn btn-primary" style="height: 36px; font-size: 13px;" id="btn-save">保存设置</button>
+    <button class="btn btn-secondary" style="height: 36px; font-size: 13px; margin-right: auto;" id="btn-test" aria-label="测试 Gemini API Key 和代理连接">🔌 测试连接</button>
+    <button class="btn btn-secondary" style="height: 36px; font-size: 13px;" id="btn-cancel" aria-label="取消并关闭设置">取消</button>
+    <button class="btn btn-primary" style="height: 36px; font-size: 13px;" id="btn-save" aria-label="保存设置">保存设置</button>
   </div>
 
   <!-- Toast -->
@@ -209,6 +347,10 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const apiKeyInput = document.getElementById('api-key');
       const btnToggleApikey = document.getElementById('btn-toggle-apikey');
+      const btnToggleGuide = document.getElementById('btn-toggle-guide');
+      const apiKeyGuide = document.getElementById('api-key-guide');
+      const btnOpenApiKeyPage = document.getElementById('btn-open-apikey-page');
+      const btnPasteApiKey = document.getElementById('btn-paste-apikey');
       const proxyUrlInput = document.getElementById('proxy-url');
       const btnDetectProxy = document.getElementById('btn-detect-proxy');
       const geminiVoiceSelect = document.getElementById('gemini-voice');
@@ -218,6 +360,7 @@
       const btnSave = document.getElementById('btn-save');
       const btnTest = document.getElementById('btn-test');
       const toast = document.getElementById('toast');
+      const inlineNotice = document.getElementById('inline-notice');
 
       let apiKeyDecrypted = false;
       let decryptedKey = '';
@@ -228,6 +371,17 @@
         setTimeout(() => {
           toast.classList.remove('show');
         }, 3000);
+      };
+
+      const showNotice = (msg, type = 'info') => {
+        inlineNotice.textContent = msg;
+        inlineNotice.className = `notice show ${type}`;
+      };
+
+      const setGuideExpanded = (expanded) => {
+        apiKeyGuide.classList.toggle('expanded', expanded);
+        btnToggleGuide.setAttribute('aria-expanded', String(expanded));
+        btnToggleGuide.textContent = expanded ? '收起教程' : '如何获取？';
       };
 
       // 1. 关闭/取消事件
@@ -259,6 +413,43 @@
         } else {
           apiKeyInput.type = 'password';
           btnToggleApikey.textContent = '👁️';
+        }
+      });
+
+      btnToggleGuide.addEventListener('click', () => {
+        setGuideExpanded(!apiKeyGuide.classList.contains('expanded'));
+      });
+
+      btnOpenApiKeyPage.addEventListener('click', async () => {
+        try {
+          if (window.electronAPI) {
+            await window.electronAPI.openApiKeyPage();
+            setGuideExpanded(true);
+            showNotice('已在系统浏览器打开 Google AI Studio。创建并复制 API Key 后，可回到这里一键粘贴。');
+          }
+        } catch (e) {
+          console.error(e);
+          showNotice('打开 Google AI Studio 失败: ' + e.message, 'error');
+        }
+      });
+
+      btnPasteApiKey.addEventListener('click', async () => {
+        try {
+          if (!window.electronAPI) return;
+          const res = await window.electronAPI.readClipboardApiKey();
+          if (res.success) {
+            apiKeyInput.value = res.apiKey;
+            apiKeyInput.type = 'password';
+            btnToggleApikey.textContent = '👁️';
+            apiKeyDecrypted = true;
+            decryptedKey = res.apiKey;
+            showNotice('已从剪贴板填入 Gemini API Key。建议点击“测试连接”验证后保存。', 'success');
+          } else {
+            showNotice(res.message, 'error');
+          }
+        } catch (e) {
+          console.error(e);
+          showNotice('读取剪贴板失败: ' + e.message, 'error');
         }
       });
 
@@ -295,6 +486,10 @@
           if (settings.geminiVoice) {
             geminiVoiceSelect.value = settings.geminiVoice;
           }
+          if (!settings.apiKeyMasked) {
+            setGuideExpanded(true);
+            showNotice('首次使用需要先配置 Gemini API Key。请按教程获取密钥，测试连接成功后保存。');
+          }
         } catch (e) {
           console.error('Failed to load settings:', e);
         }
@@ -322,7 +517,7 @@
               closeWindow();
             }, 1500);
           } catch (e) {
-            alert('保存设置失败: ' + e.message);
+            showNotice('保存设置失败: ' + e.message, 'error');
           }
         }
       });
@@ -341,23 +536,21 @@
             if (res.success) {
               if (res.autoCorrected) {
                 proxyUrlInput.value = res.correctedProxyUrl;
-                alert(`🎉 连接成功！\n\n提示：检测到您的代理在 443 端口仅支持普通 HTTP 代理协议（不支持代理层 TLS 握手）。\n已自动将代理协议修正为: ${res.correctedProxyUrl}，请点击保存。`);
+                showNotice(`连接成功！检测到该代理仅支持普通 HTTP 代理协议，已自动修正为 ${res.correctedProxyUrl}，请点击保存。`, 'success');
               } else if (res.autoDetected) {
-                const useDetected = confirm(`🎉 连接成功（自动使用系统代理）！\n\n检测到您的系统代理为: ${res.detectedProxyUrl}\n是否一键填入该代理以固化配置？`);
-                if (useDetected) {
-                  proxyUrlInput.value = res.detectedProxyUrl;
-                }
+                proxyUrlInput.value = res.detectedProxyUrl;
+                showNotice(`连接成功！已自动检测并填入系统代理 ${res.detectedProxyUrl}，保存后可固定使用该配置。`, 'success');
               } else if (res.mode === 'direct') {
-                alert('🎉 连接成功（直连/TUN 模式网络畅通）！');
+                showNotice('连接成功（直连/TUN 模式网络畅通）。API Key 与 Gemini Live 模型可用。', 'success');
               } else {
-                alert('🎉 连接成功！API Key 和代理配置验证通过。');
+                showNotice('连接成功！API Key、代理配置与 Gemini Live 模型验证通过。', 'success');
               }
             } else {
-              alert('❌ 连接失败\n原因: ' + res.message);
+              showNotice('连接失败: ' + res.message, 'error');
             }
           }
         } catch (e) {
-          alert('❌ 测试网络连接发生异常: ' + e.message);
+          showNotice('测试网络连接发生异常: ' + e.message, 'error');
         } finally {
           btnTest.disabled = false;
           btnTest.textContent = '🔌 测试连接';

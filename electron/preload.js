@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   testConnection:  (data) => ipcRenderer.invoke('test-connection', data),
   getDecryptedApiKey: () => ipcRenderer.invoke('get-decrypted-apikey'),
   resolveSystemProxy: () => ipcRenderer.invoke('resolve-system-proxy'),
+  openApiKeyPage: () => ipcRenderer.invoke('open-api-key-page'),
+  readClipboardApiKey: () => ipcRenderer.invoke('read-clipboard-apikey'),
 
   // 主窗口上报屏幕帧给 main.js（供迷你窗预览）
   updatePreviewFrame: (base64JPEG) => ipcRenderer.send('preview-frame-update', base64JPEG),
